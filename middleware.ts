@@ -1,4 +1,4 @@
-export { auth as middleware } from "@/app/api/auth/[...nextauth]/route";
+export { default } from "next-auth/middleware";
 
 export const config = {
   matcher: [

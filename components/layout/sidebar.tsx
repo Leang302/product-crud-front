@@ -32,6 +32,8 @@ const navigation = [
   { name: "Department", href: "/department", icon: Building2 },
   { name: "Staff", href: "/staff", icon: Users },
   { name: "Users", href: "/users", icon: Users },
+  { name: "Task", href: "/task", icon: BookOpen },
+  
 ];
 
 const Sidebar = ({ children }: SidebarProps) => {

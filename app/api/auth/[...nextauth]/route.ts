@@ -1,4 +1,4 @@
-import NextAuth, { type NextAuthConfig } from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { StaticUsers, UserRoleSchema } from "@/types";
 
@@ -9,7 +9,7 @@ const ALL_USERS = [
   ...StaticUsers.student,
 ];
 
-export const authConfig = {
+export const authConfig: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
@@ -49,23 +49,11 @@ export const authConfig = {
       (session as any).role = token.role;
       return session;
     },
-    authorized({ auth, request }) {
-      // Allow public access to auth routes
-      const path = request.nextUrl.pathname;
-      const isPublicAuth =
-        path.startsWith("/login") ||
-        path.startsWith("/forgot-password") ||
-        path.startsWith("/change-password");
-      if (isPublicAuth) return true;
-      return !!auth?.user;
-    },
   },
   pages: {
     signIn: "/login",
   },
-} satisfies NextAuthConfig;
+};
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
-
-export const GET = handlers.GET;
-export const POST = handlers.POST;
+const handler = NextAuth(authConfig);
+export { handler as GET, handler as POST };
