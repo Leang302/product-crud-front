@@ -210,3 +210,13 @@ export const StaticUsers = {
     },
   ],
 } as const;
+
+// Department types
+export interface Department {
+  id: string; // UUID from backend
+  name: string;
+  description?: string;
+}
+
+export type CreateDepartmentInput = { name: string; description?: string };
+export type UpdateDepartmentInput = Partial<CreateDepartmentInput>;
