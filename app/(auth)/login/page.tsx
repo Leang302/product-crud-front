@@ -17,6 +17,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
 import { useSession } from "next-auth/react";
+import DemoUsers from "@/components/auth/DemoUsers";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -196,6 +197,9 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
+        
+        {/* Demo Users */}
+        <DemoUsers />
       </div>
     </div>
   );

@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import type { Classroom, Task, Group } from "../_lib/types"
-import { getClassroomById, getTasks, getGroups, createGroup } from "../_lib/mock-api"
+import { getTasks, getGroups, createGroup } from "../_lib/mock-api"
+import { getClassroomByIdApi } from "@/actions/classroomActions"
 import { CalendarView } from "../_components/calendar-view"
 import { DayView } from "../_components/day-view"
 import { TaskDetailDialog } from "../_components/task-detail-dialog"
@@ -35,12 +36,26 @@ export default function ClassroomDetailPage() {
   const loadData = async () => {
     setLoading(true)
     try {
+      console.log("Loading classroom with ID:", params.id)
       const [classroomData, tasksData, groupsData] = await Promise.all([
-        getClassroomById(params.id as string),
+        getClassroomByIdApi(params.id as string),
         getTasks(params.id as string),
         getGroups(params.id as string),
       ])
-      setClassroom(classroomData)
+      console.log("Classroom data received:", classroomData)
+      // Map API classroom to UI classroom shape
+      setClassroom({
+        id: classroomData.generationClassId,
+        name: classroomData.courseType,
+        courseType: "Advance Course",
+        instructor: "Mr. Doch",
+        instructorId: "teacher1",
+        studentCount: 0,
+        groupCount: 0,
+        generation: "",
+        color: "bg-blue-500",
+        icon: "📚",
+      })
       setTasks(tasksData)
       setGroups(groupsData)
     } catch (error) {

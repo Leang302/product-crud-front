@@ -6,7 +6,7 @@ import type { Classroom } from "../_lib/types"
 import { ClassroomCard } from "./classroom-card"
 import { Button } from "@/components/ui/button"
 import { Search, SlidersHorizontal } from "lucide-react"
-import { getClassrooms } from "@/app/(dashboard)/classroom/_lib/mock-api"
+import { listClassrooms } from "@/actions/classroomActions"
 import { useRouter } from "next/navigation"
 
 export function ClassroomList() {
@@ -15,6 +15,7 @@ export function ClassroomList() {
   const [searchQuery, setSearchQuery] = useState("")
   const [courseFilter, setCourseFilter] = useState<"all" | "Basic Course" | "Advance Course">("all")
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -27,11 +28,44 @@ export function ClassroomList() {
 
   const loadClassrooms = async () => {
     setLoading(true)
+    setError(null)
     try {
-      const data = await getClassrooms("teacher", "t1")
-      setClassrooms(data)
+      const { items } = await listClassrooms({ page: 0, size: 50 })
+      console.log("Raw API response items:", items)
+      const colors = [
+        "bg-pink-500",
+        "bg-blue-500",
+        "bg-red-500",
+        "bg-purple-500",
+        "bg-green-500",
+        "bg-orange-500",
+      ]
+      const mapped: Classroom[] = items.map((it) => {
+        console.log("Mapping classroom item:", it)
+        console.log("Available keys:", Object.keys(it))
+        return {
+          id: it.generationClassId,
+          name: it.courseType,
+          courseType: "Advance Course",
+          instructor: "Mr. Doch",
+          instructorId: "teacher1",
+          studentCount: 0,
+          groupCount: 0,
+          generation: "",
+          color: colors[Math.floor(Math.random() * colors.length)],
+          icon: "📚",
+        }
+      })
+      console.log("Mapped classrooms:", mapped)
+      setClassrooms(mapped)
     } catch (error) {
       console.error("[hrd] Error loading classrooms:", error)
+      // Check if it's an authentication error
+      if (error instanceof Error && error.message.includes("401")) {
+        setError("Please log in to view classrooms. Use the demo credentials on the login page.")
+      } else {
+        setError("Failed to load classrooms. Please try again.")
+      }
     } finally {
       setLoading(false)
     }
@@ -56,6 +90,7 @@ export function ClassroomList() {
   }
 
   const handleClassroomClick = (classroomId: string) => {
+    console.log("Clicked classroom with ID:", classroomId)
     router.push(`/classroom/${classroomId}`)
   }
 
@@ -63,6 +98,19 @@ export function ClassroomList() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-gray-500">Loading classrooms...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="text-red-600 mb-4">{error}</div>
+          <Button onClick={() => router.push("/login")}>
+            Go to Login
+          </Button>
+        </div>
       </div>
     )
   }
@@ -116,7 +164,9 @@ export function ClassroomList() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredClassrooms.map((classroom) => (
-          <ClassroomCard key={classroom.id} classroom={classroom} onClick={() => handleClassroomClick(classroom.id)} />
+          <div key={classroom.id} className="relative">
+            <ClassroomCard classroom={classroom} onClick={() => handleClassroomClick(classroom.id)} />
+          </div>
         ))}
       </div>
 
