@@ -1,17 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Download, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
 export default function DepartmentToolbar({
   deptTab,
   onChangeDept,
-  onTemplate,
   onAdd,
 }: {
   deptTab: "IT" | "Korean";
   onChangeDept: (dept: "IT" | "Korean") => void;
-  onTemplate: () => void;
   onAdd: () => void;
 }) {
   return (
@@ -35,9 +33,6 @@ export default function DepartmentToolbar({
         </button>
       </div>
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={onTemplate}>
-          <Download className="w-4 h-4 mr-2" /> Template
-        </Button>
         <Button className="bg-blue-600 hover:bg-blue-700" onClick={onAdd}>
           <Plus className="w-4 h-4 mr-2" /> Add Teacher
         </Button>

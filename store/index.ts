@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { User, Task, Generation, Class, Teacher } from "@/types";
+import { User, Task, Generation, Class, Teacher, Student } from "@/types";
 
 // Auth Store
 interface AuthState {
@@ -210,3 +210,37 @@ export const useTeacherStore = create<TeacherState>((set, get) => ({
   importTeachers: (teachers) => set({ teachers: [...get().teachers, ...teachers] }),
   setLoading: (isLoading) => set({ isLoading }),
 }));
+
+// Student Store
+interface StudentState {
+  students: Student[];
+  isLoading: boolean;
+  setStudents: (students: Student[]) => void;
+  addStudent: (student: Student) => void;
+  updateStudent: (id: string, updates: Partial<Student>) => void;
+  deleteStudent: (id: string) => void;
+  importStudents: (students: Student[]) => void;
+  setLoading: (loading: boolean) => void;
+}
+
+export const useStudentStore = create<StudentState>()(
+  persist(
+    (set, get) => ({
+      students: [],
+      isLoading: false,
+      setStudents: (students) => set({ students }),
+      addStudent: (student) => set({ students: [...get().students, student] }),
+      updateStudent: (id, updates) => {
+        const updated = get().students.map((s) => (s.id === id ? { ...s, ...updates } : s));
+        set({ students: updated });
+      },
+      deleteStudent: (id) => set({ students: get().students.filter((s) => s.id !== id) }),
+      importStudents: (students) => set({ students: [...get().students, ...students] }),
+      setLoading: (isLoading) => set({ isLoading }),
+    }),
+    {
+      name: "student-storage", // unique name for localStorage key
+      partialize: (state) => ({ students: state.students }),
+    }
+  )
+);
