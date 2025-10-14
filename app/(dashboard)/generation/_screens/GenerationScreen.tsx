@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import GenerationCard, {
   type GenerationRow,
@@ -75,10 +76,12 @@ export default function GenerationScreen() {
           </h2>
           <p className="text-sm text-gray-500 mt-1">Manage generations</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Generation
-        </Button>
+        <Link href="/generation/1/teachers">
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" />
+            Manage Teachers
+          </Button>
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

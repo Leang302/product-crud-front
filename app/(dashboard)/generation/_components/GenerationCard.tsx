@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, MoreVertical } from "lucide-react";
+import Link from "next/link";
 
 export type GenerationRow = {
   id: string;
@@ -47,13 +48,15 @@ export default function GenerationCard({ gen }: { gen: GenerationRow }) {
             </span>
           </div>
           <div className="flex items-center justify-between">
+            <Link href={`/generation/${gen.id}/teachers`}>
             <Button
               variant="default"
               size="sm"
               className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
-              View Classes
-            </Button>
+                View Classes
+              </Button>
+            </Link>
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <MoreVertical className="w-4 h-4" />
             </Button>
