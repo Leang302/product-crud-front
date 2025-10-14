@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -15,13 +15,27 @@ import { LoginSchema, type LoginForm } from "@/types";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import DemoUsers from "@/components/auth/DemoUsers";
+import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { useSession } from "next-auth/react";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const { status } = useSession();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      toast({
+        title: "Already signed in",
+        description: "Redirecting to your dashboard...",
+      });
+      router.replace(callbackUrl);
+    }
+  }, [status, router, searchParams, toast]);
 
   const {
     register,
@@ -34,14 +48,39 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-    // Let NextAuth handle redirect so cookies are set before navigation
-    await signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      callbackUrl,
-      redirect: true,
-    });
-    setIsLoading(false);
+    try {
+      const res = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        callbackUrl,
+        redirect: false,
+      });
+
+      if (res?.ok) {
+        toast({
+          title: "Signed in",
+          description: "Welcome back! Redirecting...",
+        });
+        router.push(callbackUrl);
+        return;
+      }
+
+      toast({
+        title: "Sign in failed",
+        description:
+          (res?.error as string) ||
+          "Invalid credentials. Please check and try again.",
+        variant: "destructive" as any,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Login failed",
+        description: e?.message ?? "Unexpected error during sign-in.",
+        variant: "destructive" as any,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -157,7 +196,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        <DemoUsers />
       </div>
     </div>
   );

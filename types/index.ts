@@ -184,3 +184,13 @@ export const StaticUsers = {
     },
   ],
 } as const;
+
+// Department types
+export interface Department {
+  id: number;
+  name: string;
+  description?: string;
+}
+
+export type CreateDepartmentInput = Omit<Department, "id">;
+export type UpdateDepartmentInput = Partial<Omit<Department, "id">>;
