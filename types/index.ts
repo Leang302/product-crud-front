@@ -187,10 +187,10 @@ export const StaticUsers = {
 
 // Department types
 export interface Department {
-  id: number;
+  id: string; // UUID from backend
   name: string;
   description?: string;
 }
 
-export type CreateDepartmentInput = Omit<Department, "id">;
-export type UpdateDepartmentInput = Partial<Omit<Department, "id">>;
+export type CreateDepartmentInput = { name: string; description?: string };
+export type UpdateDepartmentInput = Partial<CreateDepartmentInput>;

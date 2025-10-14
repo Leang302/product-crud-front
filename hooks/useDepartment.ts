@@ -59,7 +59,7 @@ export function useDepartment(
   const refresh = useMemo(() => load, [load]);
 
   const getById = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       setIsLoading(true);
       setError(null);
       try {
@@ -94,7 +94,7 @@ export function useDepartment(
   );
 
   const update = useCallback(
-    async (id: number, data: UpdateDepartmentInput) => {
+    async (id: string, data: UpdateDepartmentInput) => {
       setIsLoading(true);
       setError(null);
       try {
@@ -114,7 +114,7 @@ export function useDepartment(
   );
 
   const remove = useCallback(
-    async (id: number) => {
+    async (id: string) => {
       setIsLoading(true);
       setError(null);
       try {

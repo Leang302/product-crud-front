@@ -4,7 +4,8 @@ import {
   UpdateDepartmentInput,
 } from "@/types";
 
-const BASE = "http://167.172.68.245:8080/api/v1/departments";
+// Proxy through Next.js to avoid CORS and ensure cookies/session are used
+const BASE = "/api/departments";
 function getAuthHeader() {
   // Prefer runtime session token if exposed to the client via NEXTAUTH
   const token = (
@@ -15,6 +16,8 @@ function getAuthHeader() {
   const bearer = token || process.env.NEXT_PUBLIC_API_TOKEN;
   return bearer ? { Authorization: `Bearer ${bearer}` } : {};
 }
+
+type ApiResponse<T> = { message?: string; payload?: T; status?: string };
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -29,6 +32,9 @@ async function handleResponse<T>(res: Response): Promise<T> {
     (err as any).details = json;
     throw err;
   }
+  if (json && typeof json === "object" && "payload" in json) {
+    return (json as ApiResponse<T>).payload as T;
+  }
   return json as T;
 }
 
@@ -38,8 +44,24 @@ function authHeader(accessToken?: string): HeadersInit {
 }
 
 export const DepartmentService = {
-  async list(accessToken?: string): Promise<Department[]> {
-    const res = await fetch(BASE, {
+  async list(
+    accessToken?: string,
+    params?: {
+      name?: string;
+      page?: number;
+      size?: number;
+      sortBy?: string;
+      sortDirection?: "ASC" | "DESC";
+    }
+  ): Promise<Department[]> {
+    const query = new URLSearchParams();
+    if (params?.name) query.set("name", params.name);
+    if (params?.page) query.set("page", String(params.page));
+    if (params?.size) query.set("size", String(params.size));
+    if (params?.sortBy) query.set("sortBy", params.sortBy);
+    if (params?.sortDirection) query.set("sortDirection", params.sortDirection);
+    const url = query.size ? `${BASE}?${query.toString()}` : BASE;
+    const res = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -47,10 +69,20 @@ export const DepartmentService = {
       },
       cache: "no-store",
     });
-    return handleResponse<Department[]>(res);
+    const data = await handleResponse<any>(res);
+    if (Array.isArray(data)) return data as Department[];
+    if (data && typeof data === "object") {
+      if (Array.isArray((data as any).content))
+        return (data as any).content as Department[];
+      if (Array.isArray((data as any).items))
+        return (data as any).items as Department[];
+      if (Array.isArray((data as any).results))
+        return (data as any).results as Department[];
+    }
+    return [];
   },
 
-  async getById(id: number, accessToken?: string): Promise<Department> {
+  async getById(id: string, accessToken?: string): Promise<Department> {
     const res = await fetch(`${BASE}/${id}`, {
       method: "GET",
       headers: {
@@ -78,7 +110,7 @@ export const DepartmentService = {
   },
 
   async update(
-    id: number,
+    id: string,
     payload: UpdateDepartmentInput,
     accessToken?: string
   ): Promise<Department> {
@@ -94,7 +126,7 @@ export const DepartmentService = {
   },
 
   async remove(
-    id: number,
+    id: string,
     accessToken?: string
   ): Promise<{ success: boolean } | void> {
     const res = await fetch(`${BASE}/${id}`, {
