@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { signOut } from "next-auth/react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/app/(dashboard)/task/_components/ui/alert-dialog";
+import { toast } from "@/app/(dashboard)/task/_components/ui/use-toast";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -33,7 +45,6 @@ const navigation = [
   { name: "Staff", href: "/staff", icon: Users },
   { name: "Users", href: "/users", icon: Users },
   { name: "Task", href: "/task", icon: BookOpen },
-  
 ];
 
 const Sidebar = ({ children }: SidebarProps) => {
@@ -55,6 +66,7 @@ const Sidebar = ({ children }: SidebarProps) => {
     }
   }, [collapsed]);
 
+  const [openLogout, setOpenLogout] = useState(false);
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -166,10 +178,40 @@ const Sidebar = ({ children }: SidebarProps) => {
               collapsed ? "justify-center" : "space-x-3"
             )}
             title="Logout"
+            onClick={() => setOpenLogout(true)}
           >
             <LogOut className="w-5 h-5" />
             {!collapsed && <span>Logout Account</span>}
           </button>
+          <AlertDialog open={openLogout} onOpenChange={setOpenLogout}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Log out</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to log out? You will need to sign in
+                  again to continue.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setOpenLogout(false)}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-red-600 text-white hover:bg-red-600/90"
+                  onClick={() => {
+                    setOpenLogout(false);
+                    toast({
+                      title: "Logged out",
+                      description: "You have been signed out successfully.",
+                    });
+                    signOut({ callbackUrl: "/login" });
+                  }}
+                >
+                  Log out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
