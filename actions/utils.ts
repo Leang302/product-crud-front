@@ -5,7 +5,7 @@ import { z } from "zod";
 export const API_BASE_URL =
   process.env.API_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:3000";
+  "http://167.172.68.245:8080";
 
 // Common error shape for APIs (adjust to your backend contract later)
 export const ApiErrorSchema = z.object({

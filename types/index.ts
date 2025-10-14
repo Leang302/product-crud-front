@@ -103,6 +103,32 @@ export type LoginForm = z.infer<typeof LoginSchema>;
 export type ForgotPasswordForm = z.infer<typeof ForgotPasswordSchema>;
 export type ChangePasswordForm = z.infer<typeof ChangePasswordSchema>;
 
+// Teacher types
+export const TeacherStatusSchema = z.enum(["active", "inactive", "graduated"]);
+export type TeacherStatus = z.infer<typeof TeacherStatusSchema>;
+
+export const TeacherSchema = z.object({
+  id: z.string(),
+  generationId: z.string(),
+  department: z.string(),
+  className: z.string().optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  gender: z.enum(["Male", "Female"]).optional(),
+  placeOfBirth: z.string().optional(),
+  currentAddress: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  subjects: z.array(z.string()).default([]),
+  status: TeacherStatusSchema.default("active"),
+  avatar: z.string().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export type Teacher = z.infer<typeof TeacherSchema>;
+
 // Static users for demo auth (email/password)
 export const StaticUsers = {
   admin: [
@@ -184,3 +210,13 @@ export const StaticUsers = {
     },
   ],
 } as const;
+
+// Department types
+export interface Department {
+  id: string; // UUID from backend
+  name: string;
+  description?: string;
+}
+
+export type CreateDepartmentInput = { name: string; description?: string };
+export type UpdateDepartmentInput = Partial<CreateDepartmentInput>;

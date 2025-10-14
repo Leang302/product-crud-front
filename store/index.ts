@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { User, Task, Generation, Class } from "@/types";
+import { User, Task, Generation, Class, Teacher } from "@/types";
 
 // Auth Store
 interface AuthState {
@@ -145,5 +145,68 @@ export const useClassStore = create<ClassState>((set, get) => ({
     const filteredClasses = classes.filter((cls) => cls.id !== id);
     set({ classes: filteredClasses });
   },
+  setLoading: (isLoading) => set({ isLoading }),
+}));
+
+// Teacher Store
+interface TeacherState {
+  teachers: Teacher[];
+  isLoading: boolean;
+  setTeachers: (teachers: Teacher[]) => void;
+  addTeacher: (teacher: Teacher) => void;
+  updateTeacher: (id: string, updates: Partial<Teacher>) => void;
+  deleteTeacher: (id: string) => void;
+  importTeachers: (teachers: Teacher[]) => void;
+  setLoading: (loading: boolean) => void;
+}
+
+const initialTeachers: Teacher[] = [
+  {
+    id: "t-it-1",
+    generationId: "1",
+    department: "IT",
+    className: "PP",
+    firstName: "Kheng",
+    lastName: "Sovannak",
+    email: "sovannak.kheng0309@gmail.com",
+    phone: "+855 96 465 5418",
+    gender: "Male",
+    placeOfBirth: "Memot, Kampong Cham",
+    currentAddress: "Toul Kork, Phnom Penh",
+    dateOfBirth: "07/03/2002",
+    subjects: ["Git", "Spring Basic", "Spring Advance"],
+    status: "active",
+    avatar: "",
+  },
+  {
+    id: "t-ko-1",
+    generationId: "1",
+    department: "Korean",
+    className: "SR",
+    firstName: "Tong",
+    lastName: "Dalen",
+    email: "dalentong123@gmail.com",
+    phone: "+855 76 4444 331",
+    gender: "Female",
+    placeOfBirth: "Memot, Kampong Cham",
+    currentAddress: "Wat Toul, Russei Keo, Phnom Penh",
+    dateOfBirth: "--/--/----",
+    subjects: ["Korean"],
+    status: "active",
+    avatar: "",
+  },
+];
+
+export const useTeacherStore = create<TeacherState>((set, get) => ({
+  teachers: initialTeachers,
+  isLoading: false,
+  setTeachers: (teachers) => set({ teachers }),
+  addTeacher: (teacher) => set({ teachers: [...get().teachers, teacher] }),
+  updateTeacher: (id, updates) => {
+    const updated = get().teachers.map((t) => (t.id === id ? { ...t, ...updates } : t));
+    set({ teachers: updated });
+  },
+  deleteTeacher: (id) => set({ teachers: get().teachers.filter((t) => t.id !== id) }),
+  importTeachers: (teachers) => set({ teachers: [...get().teachers, ...teachers] }),
   setLoading: (isLoading) => set({ isLoading }),
 }));
