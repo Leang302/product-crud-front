@@ -5,7 +5,7 @@ let currentUser: User = {
   id: "1",
   name: "Kheng Sovannak",
   email: "teacher@example.com",
-  role: "student", // Change to "admin" or "student" to test different permissions
+  role: "teacher", // Change to "admin" or "student" to test different permissions
 }
 
 // Mock API delay to simulate network requests

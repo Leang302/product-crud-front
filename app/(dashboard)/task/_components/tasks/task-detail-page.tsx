@@ -73,7 +73,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
-        <div className="container mx-auto max-w-7xl px-6 py-6">
+        <div className="container mx-auto max-w-9xl px-6 py-6">
           <button onClick={onBack} className="mb-4 flex items-center gap-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" />
           </button>
@@ -84,7 +84,7 @@ export function TaskDetailPage({ taskId, onBack }: TaskDetailPageProps) {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-7xl px-6 py-8">
+      <div className="container mx-auto max-w-8xl px-6 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2">

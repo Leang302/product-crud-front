@@ -112,9 +112,9 @@ export default function TaskManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen  bg-background">
       <div className="border-b bg-card">
-        <div className="container mx-auto max-w-7xl px-6 py-6">
+        <div className="mx-auto max-w-10xl px-6 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Task Management</h1>
@@ -133,7 +133,7 @@ export default function TaskManagementPage() {
         </div>
       </div>
 
-      <div className="container mx-auto max-w-7xl px-6 py-6">
+      <div className="mx-auto max-w-10xl px-6 py-6">
         {/* Tabs */}
         <div className="mb-6 flex items-center gap-4">
           <button
@@ -214,7 +214,7 @@ export default function TaskManagementPage() {
                   <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                     {user && (permissions.canEditTask(user) || permissions.canDeleteTask(user)) && (
                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
                             <MoreVertical className="h-4 w-4" />
                           </Button>
@@ -231,7 +231,10 @@ export default function TaskManagementPage() {
                             </DropdownMenuItem>
                           )}
                           {permissions.canDeleteTask(user) && (
-                            <DropdownMenuItem onClick={() => handleDeleteTask(task.id)} className="text-destructive">
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteTask(task.id)} 
+                              className="text-destructive"
+                            >
                               Delete
                             </DropdownMenuItem>
                           )}
