@@ -1,6 +1,6 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { UserRoleSchema } from "@/types";
+import { UserRoleSchema, StaticUsers } from "@/types";
 import { extractRoleFromJWT } from "@/lib/jwt";
 
 export const authConfig: NextAuthOptions = {
@@ -18,6 +18,28 @@ export const authConfig: NextAuthOptions = {
         const email = String(credentials?.email || "").toLowerCase();
         const password = String(credentials?.password || "");
 
+        // First try static users as fallback
+        const allStaticUsers = [
+          ...StaticUsers.admin,
+          ...StaticUsers.teacher,
+          ...StaticUsers.student,
+        ];
+        
+        const staticUser = allStaticUsers.find(
+          (user) => user.email.toLowerCase() === email && user.password === password
+        );
+
+        if (staticUser) {
+          console.log("Using static user:", staticUser.email, "role:", staticUser.role);
+          return {
+            id: staticUser.id,
+            email: staticUser.email,
+            name: `${staticUser.firstName} ${staticUser.lastName}`,
+            role: staticUser.role,
+          } as any;
+        }
+
+        // If no static user found, try external API
         try {
           const res = await fetch(
             "http://167.172.68.245:8088/api/v1/auths/login",
@@ -40,46 +62,42 @@ export const authConfig: NextAuthOptions = {
           const user = payload?.user || payload?.profile || {};
 
           if (!res.ok || !accessToken) {
-            console.error("Login failed:", json);
+            console.error("External API login failed:", json);
             return null;
           }
 
-          // Extract role from user profile endpoint
-          console.log("Fetching user profile to get roles...");
-          let role: string | undefined;
+          // Prefer extracting role directly from JWT; fallback to profile
+          let role: string | undefined = extractRoleFromJWT(accessToken);
+          if (!role) {
+            console.log("Fetching user profile to get roles (JWT had no role)...");
+            try {
+              const profileRes = await fetch(
+                "http://localhost:8081/api/v1/users/profile",
+                {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                  },
+                }
+              );
 
-          try {
-            const profileRes = await fetch(
-              "http://localhost:8081/api/v1/users/profile",
-              {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                },
+              if (profileRes.ok) {
+                const profileData = await profileRes.json();
+                const userRoles = profileData.payload?.roles || [];
+                console.log("User roles from profile:", userRoles);
+
+                if (userRoles.includes("admin")) role = "admin";
+                else if (userRoles.includes("teacher")) role = "teacher";
+                else if (userRoles.includes("student")) role = "student";
+
+                console.log("Extracted role from profile:", role);
+              } else {
+                console.error("Failed to fetch user profile:", profileRes.status);
               }
-            );
-
-            if (profileRes.ok) {
-              const profileData = await profileRes.json();
-              const userRoles = profileData.payload?.roles || [];
-              console.log("User roles from profile:", userRoles);
-
-              // Look for our specific roles in order of priority
-              if (userRoles.includes("admin")) {
-                role = "admin";
-              } else if (userRoles.includes("teacher")) {
-                role = "teacher";
-              } else if (userRoles.includes("student")) {
-                role = "student";
-              }
-
-              console.log("Extracted role from profile:", role);
-            } else {
-              console.error("Failed to fetch user profile:", profileRes.status);
+            } catch (error) {
+              console.error("Error fetching user profile:", error);
             }
-          } catch (error) {
-            console.error("Error fetching user profile:", error);
           }
 
           if (!role || !UserRoleSchema.safeParse(role).success) {
@@ -103,7 +121,7 @@ export const authConfig: NextAuthOptions = {
                 : Date.now() + 10 * 60 * 1000, // default 10 minutes
           } as any;
         } catch (error) {
-          console.error("Login error:", error);
+          console.error("External API login error:", error);
           return null;
         }
       },
@@ -195,8 +213,11 @@ export const authConfig: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      console.log("Session callback - Token role:", token.role);
-      (session as any).role = token.role;
+      console.log("Session callback - Token role:", (token as any).role);
+      session.user = {
+        ...(session.user || {}),
+        role: (token as any).role,
+      } as any;
       (session as any).accessToken = (token as any).accessToken;
       (session as any).refreshToken = (token as any).refreshToken;
       return session;

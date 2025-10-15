@@ -7,11 +7,11 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+// Removed Language select - backend doesn't require it
 import { TaskTypeCard } from "./task-type-card"
-import { ClassSelector } from "./class-selector"
+// Removed ClassSelector - backend doesn't require it
 import { FileUploadZone } from "./file-upload-zone"
-  import { TASK_TYPES, AVAILABLE_CLASSES, LANGUAGES } from "../lib/constants"
+  import { TASK_TYPES } from "../lib/constants"
 import type { TaskType, CreateTaskFormData } from "../lib/types"
 
 interface CreateTaskDialogProps {
@@ -26,8 +26,6 @@ export function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDia
   const [step, setStep] = useState<Step>("select-type")
   const [formData, setFormData] = useState<Partial<CreateTaskFormData>>({
     submissionType: "individual",
-    language: "Java",
-    classes: [],
     attachments: [],
   })
 
@@ -59,8 +57,6 @@ export function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDia
     setStep("select-type")
     setFormData({
       submissionType: "individual",
-      language: "Java",
-      classes: [],
       attachments: [],
     })
     onOpenChange(false)
@@ -137,15 +133,6 @@ export function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDia
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Classes</Label>
-                <ClassSelector
-                  classes={AVAILABLE_CLASSES}
-                  selectedClasses={formData.classes || []}
-                  onChange={(classes) => setFormData({ ...formData, classes })}
-                />
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Submission Type</Label>
@@ -168,24 +155,7 @@ export function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDia
                   </RadioGroup>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="language">Choose subject</Label>
-                  <Select
-                    value={formData.language}
-                    onValueChange={(value: string) => setFormData({ ...formData, language: value })}
-                  >
-                    <SelectTrigger id="language">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LANGUAGES.map((lang) => (
-                        <SelectItem key={lang} value={lang}>
-                          {lang}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Removed Language selector */}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -229,28 +199,13 @@ export function CreateTaskDialog({ open, onOpenChange, onSubmit }: CreateTaskDia
                 <Label className="text-muted-foreground">Instructions</Label>
                 <p className="whitespace-pre-wrap text-sm">{formData.instructions}</p>
               </div>
-              <div>
-                <Label className="text-muted-foreground">Classes</Label>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {formData.classes?.map((classId) => {
-                    const cls = AVAILABLE_CLASSES.find((c) => c.id === classId)
-                    return (
-                      <span key={classId} className="rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground">
-                        {cls?.code}
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
+              {/* Removed Classes confirmation */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Submission Type</Label>
                   <p className="capitalize">{formData.submissionType}</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Language</Label>
-                  <p>{formData.language}</p>
-                </div>
+                {/* Removed Language confirmation */}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

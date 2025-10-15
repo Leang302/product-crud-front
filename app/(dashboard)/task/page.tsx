@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { Plus, MoreVertical, Calendar } from "lucide-react"
 import { Button } from "./_components/ui/button"
 import { Input } from "./_components/ui/input"
@@ -10,10 +11,10 @@ import { EditTaskDialog } from "./_components/tasks/edit-task-dialog"
 import { TaskDetailPage } from "./_components/tasks/task-detail-page"
 import { cn } from "./_components//lib/utils"
 import type { Task, CreateTaskFormData, User } from "./_components/lib/types"
-import { api, permissions } from "./_components/lib/mock-api"
 
 export default function TaskManagementPage() {
-  const [activeTab, setActiveTab] = useState<"all" | "your">("your")
+  const { data: session } = useSession()
+  const [activeTab, setActiveTab] = useState<"all" | "your">("all")
   const [tasks, setTasks] = useState<Task[]>([])
   const [user, setUser] = useState<User | null>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -29,11 +30,56 @@ export default function TaskManagementPage() {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [tasksData, userData] = await Promise.all([api.getTasks(), api.getCurrentUser()])
-      setTasks(tasksData)
-      setUser(userData)
+      const res = await fetch(
+        "/api/tasks?page=0&size=10&sortBy=CREATED_AT&direction=DESC",
+        { cache: "no-store" }
+      )
+      const data = await res.json()
+      const items = (data?.payload?.items || data?.items || data) as any[]
+
+      const mapped: Task[] = (Array.isArray(items) ? items : []).map((t: any) => ({
+        id: String(t.id ?? t.taskId ?? crypto.randomUUID()),
+        title: String(t.title ?? t.name ?? "Untitled"),
+        teacher: String(
+          t.teacherName ??
+          t.teacher ??
+          t.assignedBy?.name ??
+          t.createdByName ??
+          t.createdBy ??
+          t.ownerName ??
+          "-"
+        ),
+        deadline: String(t.deadline ?? t.dueDate ?? "-"),
+        classes: Array.isArray(t.classes)
+          ? t.classes.map((c: any) => ({ id: String(c.id ?? c.code ?? ""), name: String(c.name ?? c.code ?? ""), code: String(c.code ?? c.name ?? "") }))
+          : Array.isArray(t.classIds)
+            ? t.classIds.map((cid: any) => ({ id: String(cid), name: String(cid), code: String(cid) }))
+            : [],
+        taskType: ((): Task["taskType"] => {
+          const v = String(t.type ?? t.taskType ?? "assignment")
+          if (v === "class_session" || v === "class-session") return "class-session"
+          if (v === "presentation") return "presentation"
+          if (v === "examination" || v === "exam") return "examination"
+          return "assignment"
+        })(),
+        status: ((): Task["status"] => {
+          const s = String(t.status ?? "in_progress")
+          if (s === "completed") return "completed"
+          return "in-progress"
+        })(),
+        instructions: t.instructions ?? undefined,
+        submissionType: t.submissionType ?? undefined,
+        language: t.language ?? undefined,
+        startDate: t.startDate ?? undefined,
+        dueDate: t.dueDate ?? undefined,
+        attachments: Array.isArray(t.attachments) ? t.attachments : [],
+        assignedBy: t.assignedBy ?? undefined,
+        subjects: t.subjects ?? undefined,
+      }))
+
+      setTasks(mapped)
     } catch (error) {
-      console.error("[v0] Failed to load data:", error)
+      console.error("[tasks] Failed to load data:", error)
     } finally {
       setIsLoading(false)
     }
@@ -41,37 +87,128 @@ export default function TaskManagementPage() {
 
   const handleCreateTask = async (data: CreateTaskFormData) => {
     try {
-      const newTask = await api.createTask(data)
-      setTasks([newTask, ...tasks])
+      // 1) Upload attachments (if any) to our proxy: /api/files/upload-file
+      const uploadedLinks: { title: string; type: string; link: string }[] = []
+      for (const att of data.attachments || []) {
+        if (att.file) {
+          const form = new FormData()
+          form.append("file", att.file)
+          const uploadRes = await fetch("/api/files/upload-file", { method: "POST", body: form })
+          const uploadJson = await uploadRes.json()
+          // Expecting upstream to return something like { payload: { url: string } } or direct url
+          const url = uploadJson?.payload?.url || uploadJson?.url || uploadJson?.data?.url
+          if (url) {
+            uploadedLinks.push({ title: att.name, type: "LINK", link: String(url) })
+          }
+        }
+      }
+
+      // 2) Build task payload per upstream API
+      const toIsoUtc = (d?: string) => (d ? new Date(d).toISOString() : undefined)
+      const nowIso = new Date().toISOString()
+      const payload: any = {
+        title: data.title,
+        instructions: data.instructions,
+        isIndividual: data.submissionType === "individual",
+        taskType: data.taskType === "class-session" ? "CLASS_SESSION" : data.taskType.toUpperCase(),
+        isRequired: true,
+        deadline: toIsoUtc(data.dueDate) || nowIso,
+        startDate: toIsoUtc(data.startDate) || nowIso,
+      }
+
+      if (uploadedLinks.length > 0) {
+        payload.attachments = uploadedLinks.map((a) => ({
+          title: a.title,
+          type: "LINK",
+          link: a.link,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        }))
+      }
+
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        try {
+          const errJson = text ? JSON.parse(text) : undefined
+          const msg = errJson?.message || errJson?.error || text || "Create task failed"
+          throw new Error(msg)
+        } catch {
+          throw new Error(text || "Create task failed")
+        }
+      }
+      await loadData()
     } catch (error) {
-      console.error("[v0] Failed to create task:", error)
-      alert("Failed to create task")
+      console.error("[tasks] Failed to create task:", error)
+      alert((error as any)?.message || "Failed to create task")
     }
   }
 
   const handleEditTask = async (data: Partial<Task>) => {
     if (!selectedTask) return
     try {
-      const updatedTask = await api.updateTask(selectedTask.id, data)
-      if (updatedTask) {
-        setTasks(tasks.map((t) => (t.id === selectedTask.id ? updatedTask : t)))
+      const toIsoUtc = (d?: string) => (d ? new Date(d).toISOString() : undefined)
+      const nowIso = new Date().toISOString()
+      const title = data.title ?? selectedTask.title
+      const instructions = data.instructions ?? selectedTask.instructions ?? ""
+      const payload: any = {
+        title,
+        instructions,
+        isIndividual: (data.submissionType ?? selectedTask.submissionType ?? "individual") === "individual",
+        taskType:
+          (data.taskType ?? selectedTask.taskType) === "class-session"
+            ? "CLASS_SESSION"
+            : String(data.taskType ?? selectedTask.taskType).toUpperCase(),
+        isRequired: true,
+        deadline: toIsoUtc((data as any).dueDate ?? selectedTask.dueDate) || nowIso,
+        startDate: toIsoUtc((data as any).startDate ?? selectedTask.startDate) || nowIso,
       }
+
+      const res = await fetch(`/api/tasks/${encodeURIComponent(selectedTask.id)}` ,{
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        try {
+          const errJson = text ? JSON.parse(text) : undefined
+          const msg = errJson?.message || errJson?.error || text || "Update task failed"
+          throw new Error(msg)
+        } catch {
+          throw new Error(text || "Update task failed")
+        }
+      }
+      setIsEditOpen(false)
+      await loadData()
     } catch (error) {
-      console.error("[v0] Failed to update task:", error)
-      alert("Failed to update task")
+      console.error("[tasks] Failed to update task:", error)
+      alert((error as any)?.message || "Failed to update task")
     }
   }
 
   const handleDeleteTask = async (taskId: string) => {
     if (!confirm("Are you sure you want to delete this task?")) return
     try {
-      const success = await api.deleteTask(taskId)
-      if (success) {
-        setTasks(tasks.filter((t) => t.id !== taskId))
+      const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, { method: "DELETE" })
+      if (!res.ok) {
+        const text = await res.text()
+        try {
+          const errJson = text ? JSON.parse(text) : undefined
+          const msg = errJson?.message || errJson?.error || text || "Delete task failed"
+          throw new Error(msg)
+        } catch {
+          throw new Error(text || "Delete task failed")
+        }
       }
+      await loadData()
     } catch (error) {
-      console.error("[v0] Failed to delete task:", error)
-      alert("Failed to delete task")
+      console.error("[tasks] Failed to delete task:", error)
+      alert((error as any)?.message || "Failed to delete task")
     }
   }
 
@@ -120,7 +257,11 @@ export default function TaskManagementPage() {
               <h1 className="text-2xl font-bold">Task Management</h1>
               <p className="text-sm text-muted-foreground">Manage tasks.</p>
             </div>
-            {user && permissions.canCreateTask(user) && (
+            {(() => {
+              const role = session?.user?.role as any
+              const canCreate = role === "teacher" || role === "admin"
+              return canCreate
+            })() && (
               <Button
                 onClick={() => setIsCreateOpen(true)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
@@ -146,18 +287,7 @@ export default function TaskManagementPage() {
             <Calendar className="h-4 w-4" />
             All Tasks
           </button>
-          <button
-            onClick={() => setActiveTab("your")}
-            className={cn(
-              "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-              activeTab === "your"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Calendar className="h-4 w-4" />
-            Your Tasks
-          </button>
+          {/* Removed "Your Tasks" tab */}
           <div className="ml-auto">
             <Input placeholder="Search tasks..." className="w-64" />
           </div>
@@ -171,7 +301,7 @@ export default function TaskManagementPage() {
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Title</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Teacher</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Deadline</th>
-                <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Class</th>
+                {/* Removed Class column to match backend */}
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Task Type</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Status</th>
                 <th className="px-6 py-3 text-left text-sm font-medium text-muted-foreground">Actions</th>
@@ -187,14 +317,7 @@ export default function TaskManagementPage() {
                   <td className="px-6 py-4 text-sm font-medium">{task.title}</td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{task.teacher}</td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{task.deadline}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex items-center gap-1">
-                      <span className="text-muted-foreground">{task.classes[0]?.code}</span>
-                      {task.classes.length > 1 && (
-                        <span className="text-xs text-muted-foreground">+{task.classes.length - 1} more</span>
-                      )}
-                    </div>
-                  </td>
+                  {/* Removed Class cell */}
                   <td className="px-6 py-4 text-sm">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <span>{getTaskTypeIcon(task.taskType)}</span>
@@ -212,34 +335,32 @@ export default function TaskManagementPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                    {user && (permissions.canEditTask(user) || permissions.canDeleteTask(user)) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {permissions.canEditTask(user) && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedTask(task)
-                                setIsEditOpen(true)
-                              }}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-                          )}
-                          {permissions.canDeleteTask(user) && (
-                            <DropdownMenuItem 
-                              onClick={() => handleDeleteTask(task.id)} 
-                              className="text-destructive"
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                    {(() => {
+                      const role = session?.user?.role as any
+                      const canManage = role === "teacher" || role === "admin"
+                      return canManage
+                    })() && (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTask(task)
+                            setIsEditOpen(true)
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteTask(task.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     )}
                   </td>
                 </tr>

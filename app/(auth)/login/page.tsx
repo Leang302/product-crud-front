@@ -149,6 +149,7 @@ export default function LoginPage() {
                   {...register("email")}
                   type="email"
                   id="email"
+                  autoComplete="email"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter your email"
                 />
@@ -171,6 +172,7 @@ export default function LoginPage() {
                     {...register("password")}
                     type={showPassword ? "text" : "password"}
                     id="password"
+                    autoComplete="current-password"
                     className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your password"
                   />

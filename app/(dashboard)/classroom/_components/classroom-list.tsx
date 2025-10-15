@@ -61,8 +61,12 @@ export function ClassroomList() {
     } catch (error) {
       console.error("[hrd] Error loading classrooms:", error)
       // Check if it's an authentication error
-      if (error instanceof Error && error.message.includes("401")) {
-        setError("Please log in to view classrooms. Use the demo credentials on the login page.")
+      if (error instanceof Error && (error.message.includes("401") || error.message.includes("Unauthorized"))) {
+        setError("Session expired. Please log in again.")
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          router.push("/login")
+        }, 2000)
       } else {
         setError("Failed to load classrooms. Please try again.")
       }

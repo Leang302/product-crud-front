@@ -17,6 +17,7 @@ export interface TaskAttachment {
   name: string
   size: number
   url?: string
+  file?: File
   uploadProgress?: number
   uploadedSuccessfully?: boolean
 }

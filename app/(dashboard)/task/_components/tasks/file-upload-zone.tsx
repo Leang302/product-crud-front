@@ -27,6 +27,7 @@ export function FileUploadZone({ files, onChange, maxSize = 50 }: FileUploadZone
         id: Math.random().toString(36).substr(2, 9),
         name: file.name,
         size: file.size,
+        file,
         uploadProgress: 100,
         uploadedSuccessfully: true,
       }))
@@ -42,6 +43,7 @@ export function FileUploadZone({ files, onChange, maxSize = 50 }: FileUploadZone
       id: Math.random().toString(36).substr(2, 9),
       name: file.name,
       size: file.size,
+      file,
       uploadProgress: 100,
       uploadedSuccessfully: true,
     }))

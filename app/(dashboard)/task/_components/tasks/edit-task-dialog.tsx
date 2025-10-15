@@ -1,16 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"   
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Textarea } from "../ui/textarea"
     import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { ClassSelector } from "./class-selector"
+// Removed ClassSelector and Language select to mirror create form (backend doesn't need them)
 import { FileUploadZone } from "./file-upload-zone"
-import { AVAILABLE_CLASSES, LANGUAGES } from "../lib/constants"
+// Removed constants not used in edit form
 import type { Task } from "../lib/types"
 
 interface EditTaskDialogProps {
@@ -22,6 +21,11 @@ interface EditTaskDialogProps {
 
 export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskDialogProps) {
   const [formData, setFormData] = useState<Partial<Task>>(task || {})
+
+  // Keep dialog state in sync when a different task is selected
+  useEffect(() => {
+    setFormData(task || {})
+  }, [task])
 
   const handleSubmit = () => {
     onSubmit(formData)
@@ -64,18 +68,6 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Classes</Label>
-            <ClassSelector
-              classes={AVAILABLE_CLASSES}
-              selectedClasses={formData.classes?.map((c) => c.id) || []}
-              onChange={(classIds) => {
-                const selectedClasses = AVAILABLE_CLASSES.filter((c) => classIds.includes(c.id))
-                setFormData({ ...formData, classes: selectedClasses })
-              }}
-            />
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Submission Type</Label>
@@ -98,24 +90,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
               </RadioGroup>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-language">Choose subject</Label>
-              <Select
-                value={formData.language}
-                onValueChange={(value: string) => setFormData({ ...formData, language: value })}
-              >
-                <SelectTrigger id="edit-language">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map((lang) => (
-                    <SelectItem key={lang} value={lang}>
-                      {lang}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Removed Language selector */}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -140,12 +115,7 @@ export function EditTaskDialog({ open, onOpenChange, task, onSubmit }: EditTaskD
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Uploaded Files</Label>
-              <Button variant="ghost" size="sm" className="h-8 text-primary">
-                + Add Attachment
-              </Button>
-            </div>
+            <Label>Attachments</Label>
             <FileUploadZone
               files={formData.attachments || []}
               onChange={(files) => setFormData({ ...formData, attachments: files })}
