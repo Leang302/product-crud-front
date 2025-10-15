@@ -40,11 +40,11 @@ export async function GET(request: Request) {
     console.log("Generation Classes API - Response Status:", res.status);
 
     const text = await res.text();
-    const body = text ? JSON.parse(text) : undefined;
+    const body = text ? JSON.parse(text) : {};
 
     console.log("Generation Classes API - Response Body:", body);
 
-    return NextResponse.json(body, { status: res.status });
+    return NextResponse.json(body ?? {}, { status: res.status });
   } catch (e: any) {
     console.error("Generation Classes API - Error:", e);
     return NextResponse.json(

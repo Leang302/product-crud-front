@@ -232,7 +232,7 @@ export function ClassroomList() {
   const userRole = accessToken
     ? (extractRoleFromJWT(accessToken) as UserRole)
     : undefined;
-  const canCreateGroup = hasPermission(userRole, "classroom");
+  const canCreateGroup = userRole === "teacher";
   const isAdmin = userRole === "admin";
 
   const handleCreateGroup = (classroom: Classroom) => {

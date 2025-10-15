@@ -42,7 +42,7 @@ export function CreateGroupDialog({
     try {
       console.log(`Fetching students for class: ${generationClassId}`);
       const response = await fetch(
-        `/api/users/students/class?genclassid=${generationClassId}`,
+        `/api/users/students/class/${generationClassId}`,
         {
           method: "GET",
           headers: {
@@ -53,6 +53,10 @@ export function CreateGroupDialog({
       );
 
       if (!response.ok) {
+        // Treat 404 as empty list so UI shows "No students found in this class"
+        if (response.status === 404) {
+          return [];
+        }
         const errorText = await response.text();
         throw new Error(
           `Failed to fetch students: ${response.status} - ${errorText}`
@@ -60,8 +64,34 @@ export function CreateGroupDialog({
       }
 
       const data = await response.json();
-      const students = data.payload?.items || data.payload || [];
-      console.log(`Fetched ${students.length} students`);
+      const rawItems = data.payload?.items || data.payload || [];
+      // Normalize to { id, name, email }
+      const students: StudentResponse[] = (rawItems as any[])
+        .map((item) => {
+          const normalizedId =
+            item?.id ||
+            item?.userId ||
+            item?.studentId ||
+            item?.user?.id ||
+            null;
+          const normalizedName =
+            item?.name ||
+            item?.fullName ||
+            item?.username ||
+            item?.user?.name ||
+            "Unknown";
+          const normalizedEmail =
+            item?.email || item?.emailAddress || item?.user?.email || "";
+          return normalizedId
+            ? {
+                id: String(normalizedId),
+                name: String(normalizedName),
+                email: String(normalizedEmail),
+              }
+            : null;
+        })
+        .filter(Boolean) as StudentResponse[];
+      console.log(`Fetched ${students.length} students (normalized)`);
       return students;
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -136,7 +166,9 @@ export function CreateGroupDialog({
       return;
     }
 
-    if (selectedStudentIds.length === 0) {
+    // Ensure only valid, non-empty IDs are sent
+    const validUserIds = selectedStudentIds.filter((id) => !!id);
+    if (validUserIds.length === 0) {
       setError("Please select at least one student");
       return;
     }
@@ -148,7 +180,7 @@ export function CreateGroupDialog({
       const groupData: CreateGroupRequest = {
         groupName: groupName.trim(),
         generationClassId,
-        userIds: selectedStudentIds,
+        userIds: Array.from(new Set(validUserIds)),
       };
 
       await createGroup(groupData);
@@ -203,7 +235,9 @@ export function CreateGroupDialog({
             {studentsLoading ? (
               <div className="text-sm text-gray-500">Loading students...</div>
             ) : students.length === 0 ? (
-              <div className="text-sm text-gray-500">No students available</div>
+              <div className="text-sm text-gray-500">
+                No students found in this class
+              </div>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-3">
                 {students.map((student) => (

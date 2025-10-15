@@ -39,3 +39,41 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authConfig);
+  const accessToken = (session as any)?.accessToken as string | undefined;
+  const { search } = new URL(request.url);
+  const url = `${REMOTE_BASE}${search || ""}`;
+
+  console.log("Groups API - GET - Session:", !!session);
+  console.log("Groups API - GET - Access Token:", !!accessToken);
+  console.log("Groups API - GET - URL:", url);
+
+  if (!accessToken) {
+    return NextResponse.json(
+      { message: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      cache: "no-store",
+    });
+
+    const text = await res.text();
+    const body = text ? JSON.parse(text) : {};
+    return NextResponse.json(body ?? {}, { status: res.status });
+  } catch (e: any) {
+    return NextResponse.json(
+      { message: e?.message || "Upstream fetch failed" },
+      { status: 502 }
+    );
+  }
+}

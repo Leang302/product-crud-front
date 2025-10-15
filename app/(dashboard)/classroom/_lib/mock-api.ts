@@ -120,42 +120,6 @@ export async function getGroupById(id: string): Promise<Group | null> {
   return mockGroups.find((g) => g.id === id) || null;
 }
 
-export async function createGroup(data: Partial<Group>): Promise<Group> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const newGroup: Group = {
-    id: Date.now().toString(),
-    name: data.name || "",
-    classroomId: data.classroomId || "",
-    studentIds: data.studentIds || [],
-    students: data.students || [],
-    subject: data.subject || "",
-    teacher: data.teacher || "",
-  };
-  mockGroups.push(newGroup);
-  return newGroup;
-}
-
-export async function updateGroup(
-  id: string,
-  data: Partial<Group>
-): Promise<Group> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const idx = mockGroups.findIndex((g) => g.id === id);
-  if (idx >= 0) {
-    mockGroups[idx] = { ...mockGroups[idx], ...data };
-    return mockGroups[idx];
-  }
-  throw new Error("Group not found");
-}
-
-export async function deleteGroup(id: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const idx = mockGroups.findIndex((g) => g.id === id);
-  if (idx >= 0) {
-    mockGroups.splice(idx, 1);
-  }
-}
-
 export async function getStudents(): Promise<Student[]> {
   await new Promise((resolve) => setTimeout(resolve, 100));
   return mockStudents;
@@ -296,6 +260,38 @@ export async function fetchGenerationClasses(
     return classes;
   } catch (error) {
     console.error("Error fetching generation classes:", error);
+    throw error;
+  }
+}
+
+export async function fetchGenerationClassById(
+  generationClassId: string
+): Promise<GenerationClass | null> {
+  try {
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/generation-classes/${generationClassId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API Error Response (class by id):", errorText);
+      if (response.status === 404) return null;
+      throw new Error(
+        `Failed to fetch generation class: ${response.status} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    return (data?.payload as GenerationClass) ?? null;
+  } catch (error) {
+    console.error("Error fetching generation class by id:", error);
     throw error;
   }
 }
