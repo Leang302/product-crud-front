@@ -16,8 +16,59 @@ import {
   Instagram,
 } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { getDefaultRedirectUrl } from "@/lib/permissions";
+import { UserRole } from "@/types";
+import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  console.log("Landing page render - Status:", status);
+  console.log("Landing page render - Session:", session);
+
+  const handleGoToPortal = () => {
+    console.log("Go to Portal clicked");
+    console.log("Session status:", status);
+    console.log("Session:", session);
+    console.log("User:", session?.user);
+    console.log("User Role:", session?.user?.role);
+
+    if (status === "loading") {
+      console.log("Session is still loading, please wait");
+      return;
+    }
+
+    if (session?.user) {
+      // User is logged in, redirect to role-specific page
+      const userRole = session.user.role as UserRole | undefined;
+      const redirectUrl = getDefaultRedirectUrl(userRole);
+      console.log("User role:", userRole);
+      console.log("Redirect URL:", redirectUrl);
+      window.location.href = redirectUrl;
+    } else {
+      // User is not logged in, redirect to login
+      console.log("No session, redirecting to login");
+      window.location.href = "/login";
+    }
+  };
+
+  const handlePortalClick = () => {
+    console.log("Portal link clicked");
+    console.log("Session:", session);
+    console.log("User Role:", session?.user?.role);
+
+    if (session?.user) {
+      const userRole = session.user.role as UserRole | undefined;
+      const redirectUrl = getDefaultRedirectUrl(userRole);
+      console.log("Redirect URL:", redirectUrl);
+      window.location.href = redirectUrl;
+    } else {
+      console.log("No session, redirecting to login");
+      window.location.href = "/login";
+    }
+  };
   const programs = [
     {
       title: "Academic Excellence",
@@ -115,22 +166,37 @@ export default function LandingPage() {
               Empowering educators and students through innovative school
               management solutions
             </p>
+            {session?.user && (
+              <div className="mt-4 inline-flex items-center px-4 py-2 bg-primary/10 rounded-full">
+                <span className="text-sm font-medium text-primary">
+                  Welcome back, {session.user.name || session.user.email}!
+                </span>
+                {session.user.role && (
+                  <span className="ml-2 px-2 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">
+                    {(session.user.role as UserRole).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            )}
           </motion.div>
 
           <motion.div variants={itemVariants}>
-            <Link href="/dashboard">
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                size="lg"
+                className="text-lg px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+                onClick={handleGoToPortal}
+                disabled={status === "loading"}
               >
-                <Button
-                  size="lg"
-                  className="text-lg px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
-                >
-                  Go to Portal
-                </Button>
-              </motion.div>
-            </Link>
+                {status === "loading"
+                  ? "Loading..."
+                  : session?.user
+                  ? `Go to Portal${
+                      session.user.role ? ` (${session.user.role})` : ""
+                    }`
+                  : "Sign In"}
+              </Button>
+            </motion.div>
           </motion.div>
         </motion.div>
       </section>
@@ -248,24 +314,24 @@ export default function LandingPage() {
                 Quick Links
               </h4>
               <div className="space-y-2">
-                <Link
-                  href="/dashboard"
-                  className="block text-muted-foreground hover:text-primary transition-colors"
+                <button
+                  onClick={handlePortalClick}
+                  className="block text-muted-foreground hover:text-primary transition-colors text-left"
                 >
                   Staff Portal
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="block text-muted-foreground hover:text-primary transition-colors"
+                </button>
+                <button
+                  onClick={handlePortalClick}
+                  className="block text-muted-foreground hover:text-primary transition-colors text-left"
                 >
                   Student Portal
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="block text-muted-foreground hover:text-primary transition-colors"
+                </button>
+                <button
+                  onClick={handlePortalClick}
+                  className="block text-muted-foreground hover:text-primary transition-colors text-left"
                 >
                   Parent Portal
-                </Link>
+                </button>
                 <Link
                   href="/dashboard"
                   className="block text-muted-foreground hover:text-primary transition-colors"

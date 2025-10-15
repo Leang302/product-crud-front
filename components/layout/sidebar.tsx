@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,25 +32,101 @@ import {
   PanelRightOpen,
 } from "lucide-react";
 import UserMenu from "@/components/topbar/UserMenu";
+import { extractRoleFromJWT } from "@/lib/jwt";
+import { hasPermission } from "@/lib/permissions";
 
 interface SidebarProps {
   children: React.ReactNode;
 }
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Generation", href: "/generation", icon: GraduationCap },
-  { name: "Classroom", href: "/classroom", icon: BookOpen },
-  { name: "Department", href: "/department", icon: Building2 },
-  { name: "Staff", href: "/staff", icon: Users },
-  { name: "Users", href: "/users", icon: Users },
-  { name: "Task", href: "/task", icon: BookOpen },
+// Define navigation items with role-based access
+const navigationItems = [
+  {
+    name: "Generation",
+    href: "/generation",
+    icon: GraduationCap,
+    roles: ["admin", "teacher"] as UserRole[],
+    visible: false, // Hidden but accessible
+  },
+  {
+    name: "Classroom",
+    href: "/classroom",
+    icon: BookOpen,
+    roles: ["admin", "teacher"] as UserRole[],
+    visible: true,
+  },
+  {
+    name: "Department",
+    href: "/department",
+    icon: Building2,
+    roles: ["admin", "teacher"] as UserRole[],
+    visible: false, // Hidden but accessible
+  },
+  {
+    name: "Staff",
+    href: "/staff",
+    icon: Users,
+    roles: ["admin", "teacher"] as UserRole[],
+    visible: false, // Hidden but accessible
+  },
+  {
+    name: "Users",
+    href: "/users",
+    icon: Users,
+    roles: ["admin", "teacher"] as UserRole[],
+    visible: true,
+  },
+  {
+    name: "Task",
+    href: "/task",
+    icon: BookOpen,
+    roles: ["admin", "teacher", "student"] as UserRole[],
+    visible: true,
+  },
 ];
+
+// Function to get visible navigation items based on user role
+const getVisibleNavigation = (userRole: UserRole | undefined) => {
+  console.log("getVisibleNavigation - User Role:", userRole);
+
+  if (!userRole) {
+    console.log("getVisibleNavigation - No user role, returning empty array");
+    return [];
+  }
+
+  const filtered = navigationItems.filter((item) => {
+    const hasAccess =
+      item.visible && hasPermission(userRole, item.href.replace("/", ""));
+    console.log(
+      `getVisibleNavigation - ${item.name}: visible=${item.visible}, hasPermission=${hasAccess}`
+    );
+    return hasAccess;
+  });
+
+  console.log("getVisibleNavigation - Filtered items:", filtered);
+  return filtered;
+};
 
 const Sidebar = ({ children }: SidebarProps) => {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+
+  // Extract user role from JWT token
+  const accessToken = (session as any)?.accessToken;
+  const userRole = accessToken
+    ? (extractRoleFromJWT(accessToken) as UserRole | undefined)
+    : undefined;
+
+  console.log("Sidebar - Session:", session);
+  console.log("Sidebar - Access Token:", accessToken ? "present" : "missing");
+  console.log("Sidebar - Extracted Role:", userRole);
+
+  // Get visible navigation items based on user role
+  const visibleNavigation = getVisibleNavigation(userRole);
+
+  console.log("Sidebar - Visible Navigation:", visibleNavigation);
 
   // Persist collapsed state across reloads
   useEffect(() => {
@@ -124,6 +200,18 @@ const Sidebar = ({ children }: SidebarProps) => {
           </div>
         </div>
 
+        {/* User Role Indicator */}
+        {!collapsed && userRole && (
+          <div className="px-4 py-2 border-b border-gray-200">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-xs font-medium text-gray-600 uppercase tracking-wider">
+                {userRole}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className={cn("flex-1", collapsed ? "px-2 py-4" : "px-4 py-6")}>
           <div className="space-y-1">
@@ -132,7 +220,7 @@ const Sidebar = ({ children }: SidebarProps) => {
                 Main
               </p>
             )}
-            {navigation.map((item) => {
+            {visibleNavigation.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
@@ -222,13 +310,19 @@ const Sidebar = ({ children }: SidebarProps) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-extrabold text-gray-900">
-                {navigation.find((item) => item.href === pathname)?.name ||
-                  "Dashboard"}
+                {visibleNavigation.find((item) => item.href === pathname)
+                  ?.name ||
+                  navigationItems.find((item) => item.href === pathname)
+                    ?.name ||
+                  "Portal"}
               </h1>
               <p className="text-sm text-gray-500 mt-1">
                 {pathname === "/generation" && "Manage generations"}
                 {pathname === "/task" && "Manage tasks"}
-                {pathname === "/dashboard" && "Overview of your school"}
+                {pathname === "/classroom" && "Manage classrooms"}
+                {pathname === "/users" && "Manage users"}
+                {pathname === "/department" && "Manage departments"}
+                {pathname === "/staff" && "Manage staff"}
               </p>
             </div>
             <div className="flex items-center space-x-4">
