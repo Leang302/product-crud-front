@@ -129,6 +129,33 @@ export const TeacherSchema = z.object({
 
 export type Teacher = z.infer<typeof TeacherSchema>;
 
+// Student types
+export const StudentStatusSchema = z.enum(["active", "inactive", "graduated"]);
+export type StudentStatus = z.infer<typeof StudentStatusSchema>;
+
+export const StudentSchema = z.object({
+  id: z.string(),
+  generationId: z.string(),
+  classId: z.string(),
+  className: z.string().optional(),
+  firstName: z.string(),
+  lastName: z.string(),
+  email: z.string().email(),
+  phone: z.string().optional(),
+  gender: z.enum(["Male", "Female"]).optional(),
+  placeOfBirth: z.string().optional(),
+  currentAddress: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  university: z.string().optional(),
+  subjects: z.array(z.string()).default([]),
+  status: StudentStatusSchema.default("active"),
+  avatar: z.string().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export type Student = z.infer<typeof StudentSchema>;
+
 // Static users for demo auth (email/password)
 export const StaticUsers = {
   admin: [

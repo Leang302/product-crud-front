@@ -32,7 +32,6 @@ export default function TeachersPage() {
     "list"
   );
   const [deptTab, setDeptTab] = useState<"IT" | "Korean">("IT");
-  const [mainTab, setMainTab] = useState<"teachers" | "classes">("teachers");
   const [selected, setSelected] = useState<Teacher | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
@@ -321,63 +320,34 @@ export default function TeachersPage() {
     <div className="space-y-6 p-6">
       {/* Top page tabs (Teachers / Classes) */}
       <div className="flex items-center gap-6 text-sm text-gray-600">
-        <button
-          className={`px-3 py-1 rounded-full ${
-            mainTab === "teachers" ? "bg-blue-100 text-blue-700" : "text-gray-500"
-          }`}
-          onClick={() => setMainTab("teachers")}
-        >
+        <button className="px-3 py-1 rounded-full bg-blue-100 text-blue-700">
           Teachers
         </button>
-        <button
-          className={`px-3 py-1 rounded-full ${
-            mainTab === "classes" ? "bg-blue-100 text-blue-700" : "text-gray-500"
-          }`}
-          onClick={() => setMainTab("classes")}
-        >
-          Classes
-        </button>
+        <Link href={`/generation/${generationId}/classes`}>
+          <button className="px-3 py-1 rounded-full text-gray-500 hover:text-gray-700">
+            Classes
+          </button>
+        </Link>
       </div>
 
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">13th Generation</h2>
-          <p className="text-sm text-gray-500 mt-1">{mainTab === "teachers" ? "View teachers" : "View classrooms"}</p>
+          <p className="text-sm text-gray-500 mt-1">View teachers</p>
         </div>
         {/* no header actions, per latest UI */}
       </div>
 
-      {/* Classes content */}
-      {mainTab === "classes" && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold">Classroom</h3>
-            <Button variant="outline" onClick={downloadClassTemplate}>
-              <Download className="w-4 h-4 mr-2" /> Template
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {(["PP", "SR", "KPS", "KPS"] as string[]).map((name, idx) => (
-              <button key={idx} className="rounded-xl border py-5 text-left px-4 hover:border-blue-400">
-                <span className="text-blue-600 font-semibold">{name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Department chips left; Template/Add Teacher on right */}
-      {mainTab === "teachers" && activeTab === "list" && (
+      {activeTab === "list" && (
         <DepartmentToolbar
           deptTab={deptTab}
           onChangeDept={setDeptTab}
-          onTemplate={downloadTemplate}
           onAdd={() => setActiveTab("create")}
         />
       )}
 
-      {mainTab === "teachers" && activeTab === "list" && (
+      {activeTab === "list" && (
         <div className="bg-white rounded-xl shadow p-6">
           <div className="relative">
             <SearchBarActions
@@ -499,7 +469,7 @@ export default function TeachersPage() {
         </div>
       )}
 
-      {mainTab === "teachers" && activeTab === "create" && (
+      {activeTab === "create" && (
         <CreateTeacher
           onCancel={() => setActiveTab("list")}
           onSubmit={handleCreate}
@@ -507,7 +477,7 @@ export default function TeachersPage() {
         />
       )}
 
-      {mainTab === "teachers" && activeTab === "import" && (
+      {activeTab === "import" && (
         <ImportExcel
           onCancel={() => setActiveTab("list")}
           onFile={handleExcel}
@@ -515,7 +485,7 @@ export default function TeachersPage() {
         />
       )}
 
-      {mainTab === "teachers" && activeTab === "edit" && selected && (
+      {activeTab === "edit" && selected && (
         <EditTeacher
           teacher={selected}
           onCancel={() => setActiveTab("list")}
@@ -528,7 +498,7 @@ export default function TeachersPage() {
         />
       )}
 
-      {mainTab === "teachers" && selected && activeTab === "list" && (
+      {selected && activeTab === "list" && (
         <TeacherDetailModal
           teacher={selected}
           onClose={() => setSelected(null)}
