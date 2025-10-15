@@ -1,6 +1,7 @@
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { UserRoleSchema } from "@/types";
+import { extractRoleFromJWT } from "@/lib/jwt";
 
 export const authConfig: NextAuthOptions = {
   session: {
@@ -16,6 +17,7 @@ export const authConfig: NextAuthOptions = {
       async authorize(credentials) {
         const email = String(credentials?.email || "").toLowerCase();
         const password = String(credentials?.password || "");
+
         try {
           const res = await fetch(
             "http://167.172.68.245:8088/api/v1/auths/login",
@@ -25,6 +27,7 @@ export const authConfig: NextAuthOptions = {
               body: JSON.stringify({ email, password }),
             }
           );
+
           const text = await res.text();
           const json = text ? JSON.parse(text) : undefined;
 
@@ -36,15 +39,56 @@ export const authConfig: NextAuthOptions = {
           const expiresInSec = payload?.expiresIn || payload?.expires_in;
           const user = payload?.user || payload?.profile || {};
 
-          if (!res.ok && !accessToken) {
+          if (!res.ok || !accessToken) {
             console.error("Login failed:", json);
             return null;
           }
 
-          const role =
-            user?.role && UserRoleSchema.safeParse(user.role).success
-              ? user.role
-              : undefined;
+          // Extract role from user profile endpoint
+          console.log("Fetching user profile to get roles...");
+          let role: string | undefined;
+
+          try {
+            const profileRes = await fetch(
+              "http://localhost:8081/api/v1/users/profile",
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (profileRes.ok) {
+              const profileData = await profileRes.json();
+              const userRoles = profileData.payload?.roles || [];
+              console.log("User roles from profile:", userRoles);
+
+              // Look for our specific roles in order of priority
+              if (userRoles.includes("admin")) {
+                role = "admin";
+              } else if (userRoles.includes("teacher")) {
+                role = "teacher";
+              } else if (userRoles.includes("student")) {
+                role = "student";
+              }
+
+              console.log("Extracted role from profile:", role);
+            } else {
+              console.error("Failed to fetch user profile:", profileRes.status);
+            }
+          } catch (error) {
+            console.error("Error fetching user profile:", error);
+          }
+
+          if (!role || !UserRoleSchema.safeParse(role).success) {
+            console.error("CRITICAL: No valid role found in user profile!");
+            console.log("Available roles from profile:", role);
+            return null;
+          }
+
+          console.log("Final role assigned:", role);
 
           return {
             id: String(user?.id || user?.userId || email),
@@ -58,7 +102,8 @@ export const authConfig: NextAuthOptions = {
                 ? Date.now() + expiresInSec * 1000
                 : Date.now() + 10 * 60 * 1000, // default 10 minutes
           } as any;
-        } catch (_) {
+        } catch (error) {
+          console.error("Login error:", error);
           return null;
         }
       },
@@ -81,34 +126,111 @@ export const authConfig: NextAuthOptions = {
       try {
         const refreshToken = (token as any).refreshToken as string | undefined;
         if (!refreshToken) return token;
+
         const res = await fetch(
           `http://167.172.68.245:8088/api/v1/auths/refresh?refreshToken=${encodeURIComponent(
             refreshToken
           )}`,
           { method: "POST" }
         );
+
         const text = await res.text();
         const json = text ? JSON.parse(text) : undefined;
         if (!res.ok) return token;
+
         const payload = json?.payload ?? json?.data ?? json;
         const accessToken =
           payload?.accessToken || payload?.token || payload?.access_token;
         const expiresInSec = payload?.expiresIn || payload?.expires_in;
+
+        // Extract role from refreshed token using profile endpoint
+        if (accessToken) {
+          try {
+            const profileRes = await fetch(
+              "http://localhost:8081/api/v1/users/profile",
+              {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+
+            if (profileRes.ok) {
+              const profileData = await profileRes.json();
+              const userRoles = profileData.payload?.roles || [];
+
+              // Look for our specific roles in order of priority
+              let refreshedRole: string | undefined;
+              if (userRoles.includes("admin")) {
+                refreshedRole = "admin";
+              } else if (userRoles.includes("teacher")) {
+                refreshedRole = "teacher";
+              } else if (userRoles.includes("student")) {
+                refreshedRole = "student";
+              }
+
+              if (
+                refreshedRole &&
+                UserRoleSchema.safeParse(refreshedRole).success
+              ) {
+                (token as any).role = refreshedRole;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching user profile during refresh:", error);
+          }
+        }
+
         (token as any).accessToken = accessToken;
         (token as any).accessTokenExpires =
           typeof expiresInSec === "number"
             ? Date.now() + expiresInSec * 1000
             : Date.now() + 10 * 60 * 1000;
-      } catch (_) {
+      } catch (error) {
+        console.error("Token refresh failed:", error);
         // ignore refresh failure; client will be forced to re-login
       }
       return token;
     },
     async session({ session, token }) {
+      console.log("Session callback - Token role:", token.role);
       (session as any).role = token.role;
       (session as any).accessToken = (token as any).accessToken;
       (session as any).refreshToken = (token as any).refreshToken;
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      console.log(
+        "NextAuth redirect callback - URL:",
+        url,
+        "Base URL:",
+        baseUrl
+      );
+
+      // If the URL is a relative URL, make it absolute
+      if (url.startsWith("/")) {
+        const fullUrl = `${baseUrl}${url}`;
+        console.log("NextAuth redirect - Full URL:", fullUrl);
+        return fullUrl;
+      }
+
+      // If the URL is the same as the base URL, redirect to role-specific page
+      if (url === baseUrl) {
+        console.log("NextAuth redirect - Base URL, letting middleware handle");
+        return `${baseUrl}/dashboard`;
+      }
+
+      // If the URL is on the same origin, allow it
+      if (url.startsWith(baseUrl)) {
+        console.log("NextAuth redirect - Same origin, allowing:", url);
+        return url;
+      }
+
+      // Otherwise, redirect to base URL
+      console.log("NextAuth redirect - Default to base URL");
+      return baseUrl;
     },
   },
   pages: {

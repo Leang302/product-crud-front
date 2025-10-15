@@ -18,25 +18,59 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
 import { useSession } from "next-auth/react";
 import DemoUsers from "@/components/auth/DemoUsers";
+import { getDefaultRedirectUrl } from "@/lib/permissions";
+import { UserRole } from "@/types";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { status } = useSession();
+  const { status, data: session } = useSession();
 
   useEffect(() => {
     if (status === "authenticated") {
-      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-      toast({
-        title: "Already signed in",
-        description: "Redirecting to your dashboard...",
-      });
-      router.replace(callbackUrl);
+      const callbackUrl = searchParams.get("callbackUrl");
+      if (callbackUrl) {
+        // If there's a specific callback URL, use it
+        router.replace(callbackUrl);
+      } else {
+        // Otherwise, redirect based on user role
+        const userRole = session?.user?.role as UserRole | undefined;
+        const defaultUrl = getDefaultRedirectUrl(userRole);
+        toast({
+          title: "Already signed in",
+          description: `Redirecting to your ${userRole || "default"} page...`,
+        });
+        router.replace(defaultUrl);
+      }
     }
-  }, [status, router, searchParams, toast]);
+  }, [status, router, searchParams, toast, session]);
+
+  // Handle redirect after successful login
+  useEffect(() => {
+    if (shouldRedirect && status === "authenticated" && session) {
+      const callbackUrl = searchParams.get("callbackUrl");
+      const userRole = session?.user?.role as UserRole | undefined;
+
+      let redirectUrl: string;
+      if (callbackUrl) {
+        redirectUrl = callbackUrl;
+      } else {
+        redirectUrl = getDefaultRedirectUrl(userRole);
+      }
+
+      toast({
+        title: "Redirecting",
+        description: `Taking you to your ${userRole || "default"} page...`,
+      });
+
+      router.push(redirectUrl);
+      setShouldRedirect(false);
+    }
+  }, [shouldRedirect, status, session, router, searchParams, toast]);
 
   const {
     register,
@@ -48,21 +82,19 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
-    const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
     try {
       const res = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        callbackUrl,
         redirect: false,
       });
 
       if (res?.ok) {
         toast({
-          title: "Signed in",
+          title: "Signed in successfully",
           description: "Welcome back! Redirecting...",
         });
-        router.push(callbackUrl);
+        setShouldRedirect(true);
         return;
       }
 
