@@ -19,6 +19,7 @@ export const authConfig: NextAuthOptions = {
         const password = String(credentials?.password || "");
 
         try {
+          console.log("Attempting login for email:", email);
           const res = await fetch(
             "http://167.172.68.245:8088/api/v1/auths/login",
             {
@@ -28,8 +29,11 @@ export const authConfig: NextAuthOptions = {
             }
           );
 
+          console.log("Login response status:", res.status);
           const text = await res.text();
+          console.log("Login response text:", text);
           const json = text ? JSON.parse(text) : undefined;
+          console.log("Login response JSON:", json);
 
           // Expecting ApiResponse<AuthResponse> shape
           const payload = json?.payload ?? json?.data ?? json;
@@ -50,7 +54,7 @@ export const authConfig: NextAuthOptions = {
 
           try {
             const profileRes = await fetch(
-              "http://localhost:8081/api/v1/users/profile",
+              "http://167.172.68.245:8088/api/v1/users/profile",
               {
                 method: "GET",
                 headers: {
@@ -60,8 +64,14 @@ export const authConfig: NextAuthOptions = {
               }
             );
 
+            console.log("Profile response status:", profileRes.status);
+
             if (profileRes.ok) {
-              const profileData = await profileRes.json();
+              const profileText = await profileRes.text();
+              console.log("Profile response text:", profileText);
+              const profileData = profileText ? JSON.parse(profileText) : {};
+              console.log("Profile response JSON:", profileData);
+
               const userRoles = profileData.payload?.roles || [];
               console.log("User roles from profile:", userRoles);
 
@@ -76,7 +86,12 @@ export const authConfig: NextAuthOptions = {
 
               console.log("Extracted role from profile:", role);
             } else {
-              console.error("Failed to fetch user profile:", profileRes.status);
+              const errorText = await profileRes.text();
+              console.error(
+                "Failed to fetch user profile:",
+                profileRes.status,
+                errorText
+              );
             }
           } catch (error) {
             console.error("Error fetching user profile:", error);
@@ -147,7 +162,7 @@ export const authConfig: NextAuthOptions = {
         if (accessToken) {
           try {
             const profileRes = await fetch(
-              "http://localhost:8081/api/v1/users/profile",
+              "http://167.172.68.245:8088/api/v1/users/profile",
               {
                 method: "GET",
                 headers: {
