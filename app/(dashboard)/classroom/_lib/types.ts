@@ -88,3 +88,17 @@ export interface Resource {
   uploadedAt: Date;
   fileSize?: string;
 }
+
+// API Request/Response types
+export interface CreateGroupRequest {
+  groupName: string;
+  generationClassId: string;
+  userIds: string[];
+}
+
+export interface StudentResponse {
+  id: string;
+  name: string;
+  email: string;
+  // Add other fields as needed based on API response
+}

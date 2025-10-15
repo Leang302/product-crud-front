@@ -11,15 +11,25 @@ export async function GET(request: Request) {
   const url = `${REMOTE_BASE}${search || ""}`;
 
   console.log("Generations API - Session:", !!session);
+  console.log("Generations API - Session user:", session?.user);
   console.log("Generations API - Access Token:", !!accessToken);
+  console.log("Generations API - Access Token length:", accessToken?.length);
   console.log("Generations API - URL:", url);
+
+  if (!accessToken) {
+    console.error("Generations API - No access token found in session");
+    return NextResponse.json(
+      { message: "Authentication required" },
+      { status: 401 }
+    );
+  }
 
   try {
     const res = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        Authorization: `Bearer ${accessToken}`,
       },
       cache: "no-store",
     });

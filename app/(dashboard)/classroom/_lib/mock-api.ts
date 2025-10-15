@@ -6,6 +6,8 @@ import type {
   Resource,
   Generation,
   GenerationClass,
+  CreateGroupRequest,
+  StudentResponse,
 } from "./types";
 
 export const mockClassrooms: Classroom[] = [
@@ -360,4 +362,79 @@ function getRandomColor(): string {
     "bg-teal-500",
   ];
   return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Group management API functions
+export async function createGroup(groupData: CreateGroupRequest): Promise<any> {
+  try {
+    console.log("Creating group:", groupData);
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/groups`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(groupData),
+    });
+
+    console.log("Create group response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Create group error response:", errorText);
+      throw new Error(
+        `Failed to create group: ${response.status} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("Create group response data:", data);
+    return data;
+  } catch (error) {
+    console.error("Error creating group:", error);
+    throw error;
+  }
+}
+
+export async function fetchStudentsByClass(
+  generationClassId: string
+): Promise<StudentResponse[]> {
+  try {
+    console.log(`Fetching students for class: ${generationClassId}`);
+    console.log(
+      "API URL:",
+      `${API_BASE_URL}/users/students/class/genclassid=${generationClassId}`
+    );
+
+    const response = await fetchWithTimeout(
+      `${API_BASE_URL}/users/students/class/genclassid=${generationClassId}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+      }
+    );
+
+    console.log("Students response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Students error response:", errorText);
+      throw new Error(
+        `Failed to fetch students: ${response.status} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("Students response data:", data);
+    const students = data.payload?.items || data.payload || [];
+    console.log(`Fetched ${students.length} students`);
+    return students;
+  } catch (error) {
+    console.error("Error fetching students:", error);
+    throw error;
+  }
 }

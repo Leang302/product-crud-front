@@ -2,18 +2,16 @@
 
 import { useState, useEffect } from "react";
 import type React from "react";
-import type { Classroom, Generation } from "../_lib/types";
+import type { Classroom, Generation, GenerationClass } from "../_lib/types";
 import { ClassroomCard } from "./classroom-card";
-import { Button } from "@/components/ui/button";
-import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
-import {
-  getClassrooms,
-  fetchGenerations,
-  fetchGenerationClasses,
-  convertGenerationClassToClassroom,
-} from "@/app/(dashboard)/classroom/_lib/mock-api";
+import { CreateGroupDialog } from "./create-group-dialog";
+import { Button } from "@/app/(dashboard)/task/_components/ui/button";
+import { Search, SlidersHorizontal, ChevronDown, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { extractRoleFromJWT } from "@/lib/jwt";
+import { hasPermission } from "@/lib/permissions";
+import type { UserRole } from "../_lib/types";
 
 export function ClassroomList() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -27,8 +25,121 @@ export function ClassroomList() {
   const [loading, setLoading] = useState(true);
   const [generationsLoading, setGenerationsLoading] = useState(true);
   const [generationsError, setGenerationsError] = useState<string | null>(null);
+  const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false);
+  const [selectedClassroomForGroup, setSelectedClassroomForGroup] =
+    useState<Classroom | null>(null);
   const router = useRouter();
   const { data: session } = useSession();
+
+  // Real API functions
+  const fetchGenerations = async (): Promise<Generation[]> => {
+    try {
+      console.log("Fetching generations from API...");
+      const response = await fetch(
+        "/api/generations?page=1&size=10&sortBy=NAME&sortDirection=ASC",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch generations: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      const generations = data.payload?.items || [];
+      console.log(`Fetched ${generations.length} generations`);
+      return generations;
+    } catch (error) {
+      console.error("Error fetching generations:", error);
+      throw error;
+    }
+  };
+
+  const fetchGenerationClasses = async (
+    generationId: string
+  ): Promise<GenerationClass[]> => {
+    try {
+      console.log(`Fetching generation classes for ${generationId}`);
+      const response = await fetch(
+        `/api/generation-classes?generationId=${generationId}&page=0&size=10`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch generation classes: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      const classes = data.payload?.items || [];
+      console.log(`Fetched ${classes.length} generation classes`);
+      return classes;
+    } catch (error) {
+      console.error("Error fetching generation classes:", error);
+      throw error;
+    }
+  };
+
+  const convertGenerationClassToClassroom = (
+    generationClass: GenerationClass
+  ): Classroom => {
+    console.log("Converting GenerationClass to Classroom:", {
+      id: generationClass.generationClassId,
+      name: generationClass.classroom.name,
+      courseType: generationClass.courseType,
+      generation: generationClass.generation.name,
+    });
+
+    return {
+      id: generationClass.generationClassId,
+      name: generationClass.classroom.name,
+      courseType:
+        generationClass.courseType === "BASIC"
+          ? "Basic Course"
+          : "Advance Course",
+      instructor: "TBD",
+      instructorId: generationClass.userId || "unknown",
+      studentCount: 0,
+      groupCount: 0,
+      generation: generationClass.generation.name,
+      color: getDeterministicColor(generationClass.generationClassId),
+      icon: "📚",
+    };
+  };
+
+  const getDeterministicColor = (id: string): string => {
+    const colors = [
+      "bg-pink-500",
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-red-500",
+      "bg-indigo-500",
+      "bg-teal-500",
+    ];
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      hash = ((hash << 5) - hash + id.charCodeAt(i)) & 0xffffffff;
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   useEffect(() => {
     loadGenerations();
@@ -114,6 +225,24 @@ export function ClassroomList() {
     }
 
     setFilteredClassrooms(filtered);
+  };
+
+  // Check if user is a teacher
+  const accessToken = (session as any)?.accessToken;
+  const userRole = accessToken
+    ? (extractRoleFromJWT(accessToken) as UserRole)
+    : undefined;
+  const canCreateGroup = hasPermission(userRole, "classroom");
+  const isAdmin = userRole === "admin";
+
+  const handleCreateGroup = (classroom: Classroom) => {
+    setSelectedClassroomForGroup(classroom);
+    setCreateGroupDialogOpen(true);
+  };
+
+  const handleGroupCreated = () => {
+    // Refresh the classroom data or show success message
+    console.log("Group created successfully");
   };
 
   const handleClassroomClick = (classroomId: string) => {
@@ -243,27 +372,29 @@ export function ClassroomList() {
       </div>
 
       {/* Generation Filter */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700">
-            Generation:
-          </label>
-          <div className="relative">
-            <select
-              value={selectedGenerationId}
-              onChange={(e) => setSelectedGenerationId(e.target.value)}
-              className="appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {generations.map((generation) => (
-                <option key={generation.id} value={generation.id}>
-                  {generation.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      {isAdmin && (
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">
+              Generation:
+            </label>
+            <div className="relative">
+              <select
+                value={selectedGenerationId}
+                onChange={(e) => setSelectedGenerationId(e.target.value)}
+                className="appearance-none bg-white border border-gray-300 rounded-md px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {generations.map((generation) => (
+                  <option key={generation.id} value={generation.id}>
+                    {generation.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
@@ -284,13 +415,38 @@ export function ClassroomList() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredClassrooms.map((classroom) => (
-          <ClassroomCard
-            key={classroom.id}
-            classroom={classroom}
-            onClick={() => handleClassroomClick(classroom.id)}
-          />
+          <div key={classroom.id} className="relative group">
+            <ClassroomCard
+              classroom={classroom}
+              onClick={() => handleClassroomClick(classroom.id)}
+            />
+            {canCreateGroup && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-white shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCreateGroup(classroom);
+                }}
+              >
+                <Users className="w-4 h-4 mr-1" />
+                Create Group
+              </Button>
+            )}
+          </div>
         ))}
       </div>
+
+      {/* Create Group Dialog */}
+      {selectedClassroomForGroup && (
+        <CreateGroupDialog
+          open={createGroupDialogOpen}
+          onOpenChange={setCreateGroupDialogOpen}
+          generationClassId={selectedClassroomForGroup.id}
+          onGroupCreated={handleGroupCreated}
+        />
+      )}
 
       {filteredClassrooms.length === 0 && (
         <div className="text-center py-12">
