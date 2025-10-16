@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authConfig } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 const REMOTE_BASE = "http://167.172.68.245:8084/api/v1/tasks";
 
@@ -8,7 +7,7 @@ export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authConfig as any);
+  const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
   const url = `${REMOTE_BASE}/${encodeURIComponent(params.id)}`;
   try {
@@ -42,7 +41,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: { id: string } }
 ) {
-  const session = await getServerSession(authConfig as any);
+  const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
   const url = `${REMOTE_BASE}/${encodeURIComponent(params.id)}`;
   try {
@@ -68,5 +67,3 @@ export async function DELETE(
     );
   }
 }
-
-

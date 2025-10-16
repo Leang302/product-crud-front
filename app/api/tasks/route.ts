@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authConfig } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 const REMOTE_BASE = "http://167.172.68.245:8084/api/v1/tasks";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authConfig);
+  const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
   const { search } = new URL(request.url);
   const url = `${REMOTE_BASE}${search || ""}`;
@@ -30,7 +29,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authConfig);
+  const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
   try {
     const body = await request.json();

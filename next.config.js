@@ -6,7 +6,7 @@ const nextConfig = {
   },
   // Custom error handling
   experimental: {
-    errorOverlay: false, // Disable the default error overlay
+    // errorOverlay is deprecated in Next.js 15.5.5
   },
   // Handle runtime errors gracefully
   onDemandEntries: {

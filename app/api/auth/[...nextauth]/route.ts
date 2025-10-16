@@ -1,9 +1,9 @@
-import NextAuth, { type NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { UserRoleSchema, StaticUsers } from "@/types";
+import { UserRoleSchema } from "@/types";
 import { extractRoleFromJWT } from "@/lib/jwt";
 
-export const authConfig: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
@@ -15,31 +15,10 @@ export const authConfig: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email || "").toLowerCase();
-        const password = String(credentials?.password || "");
+        const email = String(credentials?.email ?? "").toLowerCase();
+        const password = String(credentials?.password ?? "");
 
-        // First try static users as fallback
-        const allStaticUsers = [
-          ...StaticUsers.admin,
-          ...StaticUsers.teacher,
-          ...StaticUsers.student,
-        ];
-        
-        const staticUser = allStaticUsers.find(
-          (user) => user.email.toLowerCase() === email && user.password === password
-        );
-
-        if (staticUser) {
-          console.log("Using static user:", staticUser.email, "role:", staticUser.role);
-          return {
-            id: staticUser.id,
-            email: staticUser.email,
-            name: `${staticUser.firstName} ${staticUser.lastName}`,
-            role: staticUser.role,
-          } as any;
-        }
-
-        // If no static user found, try external API
+        // Try external API for authentication
         try {
           const res = await fetch(
             "http://167.172.68.245:8088/api/v1/auths/login",
@@ -69,10 +48,12 @@ export const authConfig: NextAuthOptions = {
           // Prefer extracting role directly from JWT; fallback to profile
           let role: string | undefined = extractRoleFromJWT(accessToken);
           if (!role) {
-            console.log("Fetching user profile to get roles (JWT had no role)...");
+            console.log(
+              "Fetching user profile to get roles (JWT had no role)..."
+            );
             try {
               const profileRes = await fetch(
-                "http://localhost:8081/api/v1/users/profile",
+                "http://167.172.68.245:8088/api/v1/users/profile",
                 {
                   method: "GET",
                   headers: {
@@ -93,7 +74,10 @@ export const authConfig: NextAuthOptions = {
 
                 console.log("Extracted role from profile:", role);
               } else {
-                console.error("Failed to fetch user profile:", profileRes.status);
+                console.error(
+                  "Failed to fetch user profile:",
+                  profileRes.status
+                );
               }
             } catch (error) {
               console.error("Error fetching user profile:", error);
@@ -165,7 +149,7 @@ export const authConfig: NextAuthOptions = {
         if (accessToken) {
           try {
             const profileRes = await fetch(
-              "http://localhost:8081/api/v1/users/profile",
+              "http://167.172.68.245:8088/api/v1/users/profile",
               {
                 method: "GET",
                 headers: {
@@ -215,7 +199,7 @@ export const authConfig: NextAuthOptions = {
     async session({ session, token }) {
       console.log("Session callback - Token role:", (token as any).role);
       session.user = {
-        ...(session.user || {}),
+        ...session.user,
         role: (token as any).role,
       } as any;
       (session as any).accessToken = (token as any).accessToken;
@@ -237,9 +221,10 @@ export const authConfig: NextAuthOptions = {
         return fullUrl;
       }
 
-      // If the URL is the same as the base URL, redirect to role-specific page
+      // If the URL is the same as the base URL, redirect to dashboard
+      // The middleware will handle role-based redirects from there
       if (url === baseUrl) {
-        console.log("NextAuth redirect - Base URL, letting middleware handle");
+        console.log("NextAuth redirect - Base URL, redirecting to dashboard");
         return `${baseUrl}/dashboard`;
       }
 
@@ -249,15 +234,14 @@ export const authConfig: NextAuthOptions = {
         return url;
       }
 
-      // Otherwise, redirect to base URL
-      console.log("NextAuth redirect - Default to base URL");
-      return baseUrl;
+      // Otherwise, redirect to dashboard (middleware will handle role-based redirect)
+      console.log("NextAuth redirect - Default to dashboard");
+      return `${baseUrl}/dashboard`;
     },
   },
   pages: {
     signIn: "/login",
   },
-};
+});
 
-const handler = NextAuth(authConfig);
-export { handler as GET, handler as POST };
+export const { GET, POST } = handlers;

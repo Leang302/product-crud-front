@@ -109,9 +109,15 @@ const getVisibleNavigation = (userRole: UserRole | undefined) => {
 
 const Sidebar = ({ children }: SidebarProps) => {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Prevent hydration mismatch by only rendering session-dependent content on client
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Extract user role from JWT token
   const accessToken = (session as any)?.accessToken;
@@ -201,7 +207,7 @@ const Sidebar = ({ children }: SidebarProps) => {
         </div>
 
         {/* User Role Indicator */}
-        {!collapsed && userRole && (
+        {!collapsed && isClient && userRole && (
           <div className="px-4 py-2 border-b border-gray-200">
             <div className="flex items-center space-x-2">
               <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -220,25 +226,26 @@ const Sidebar = ({ children }: SidebarProps) => {
                 Main
               </p>
             )}
-            {visibleNavigation.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    collapsed ? "justify-center" : "space-x-3",
-                    isActive
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
-                  )}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {!collapsed && <span>{item.name}</span>}
-                </Link>
-              );
-            })}
+            {isClient &&
+              visibleNavigation.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      collapsed ? "justify-center" : "space-x-3",
+                      isActive
+                        ? "bg-blue-50 text-blue-600"
+                        : "text-gray-700 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    {!collapsed && <span>{item.name}</span>}
+                  </Link>
+                );
+              })}
           </div>
         </div>
 
@@ -310,8 +317,9 @@ const Sidebar = ({ children }: SidebarProps) => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-extrabold text-gray-900">
-                {visibleNavigation.find((item) => item.href === pathname)
-                  ?.name ||
+                {(isClient &&
+                  visibleNavigation.find((item) => item.href === pathname)
+                    ?.name) ||
                   navigationItems.find((item) => item.href === pathname)
                     ?.name ||
                   "Portal"}

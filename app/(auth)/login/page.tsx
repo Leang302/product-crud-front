@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -14,63 +14,12 @@ import {
 import { LoginSchema, type LoginForm } from "@/types";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
-import { useSession } from "next-auth/react";
-import DemoUsers from "@/components/auth/DemoUsers";
-import { getDefaultRedirectUrl } from "@/lib/permissions";
-import { UserRole } from "@/types";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [shouldRedirect, setShouldRedirect] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const { status, data: session } = useSession();
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      const callbackUrl = searchParams.get("callbackUrl");
-      if (callbackUrl) {
-        // If there's a specific callback URL, use it
-        router.replace(callbackUrl);
-      } else {
-        // Otherwise, redirect based on user role
-        const userRole = session?.user?.role as UserRole | undefined;
-        const defaultUrl = getDefaultRedirectUrl(userRole);
-        toast({
-          title: "Already signed in",
-          description: `Redirecting to your ${userRole || "default"} page...`,
-        });
-        router.replace(defaultUrl);
-      }
-    }
-  }, [status, router, searchParams, toast, session]);
-
-  // Handle redirect after successful login
-  useEffect(() => {
-    if (shouldRedirect && status === "authenticated" && session) {
-      const callbackUrl = searchParams.get("callbackUrl");
-      const userRole = session?.user?.role as UserRole | undefined;
-
-      let redirectUrl: string;
-      if (callbackUrl) {
-        redirectUrl = callbackUrl;
-      } else {
-        redirectUrl = getDefaultRedirectUrl(userRole);
-      }
-
-      toast({
-        title: "Redirecting",
-        description: `Taking you to your ${userRole || "default"} page...`,
-      });
-
-      router.push(redirectUrl);
-      setShouldRedirect(false);
-    }
-  }, [shouldRedirect, status, session, router, searchParams, toast]);
 
   const {
     register,
@@ -86,25 +35,19 @@ export default function LoginPage() {
       const res = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        redirect: false,
+        redirect: true,
+        callbackUrl: "/dashboard", // NextAuth will redirect to dashboard, middleware will handle role-based redirect
       });
 
-      if (res?.ok) {
+      // This code won't execute if redirect is successful
+      if (res?.error) {
         toast({
-          title: "Signed in successfully",
-          description: "Welcome back! Redirecting...",
+          title: "Sign in failed",
+          description:
+            res.error || "Invalid credentials. Please check and try again.",
+          variant: "destructive" as any,
         });
-        setShouldRedirect(true);
-        return;
       }
-
-      toast({
-        title: "Sign in failed",
-        description:
-          (res?.error as string) ||
-          "Invalid credentials. Please check and try again.",
-        variant: "destructive" as any,
-      });
     } catch (e: any) {
       toast({
         title: "Login failed",
@@ -231,9 +174,6 @@ export default function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        
-        {/* Demo Users */}
-        <DemoUsers />
       </div>
     </div>
   );
