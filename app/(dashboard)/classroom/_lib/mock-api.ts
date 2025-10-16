@@ -393,6 +393,74 @@ export async function createGroup(groupData: CreateGroupRequest): Promise<any> {
   }
 }
 
+export async function updateGroup(
+  groupId: string,
+  groupData: Partial<CreateGroupRequest>
+): Promise<any> {
+  try {
+    console.log("Updating group:", groupId, groupData);
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/groups/${groupId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(groupData),
+    });
+
+    console.log("Update group response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Update group error response:", errorText);
+      throw new Error(
+        `Failed to update group: ${response.status} - ${errorText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("Update group response data:", data);
+    return data;
+  } catch (error) {
+    console.error("Error updating group:", error);
+    throw error;
+  }
+}
+
+export async function deleteGroup(groupId: string): Promise<{ success: boolean }> {
+  try {
+    console.log("Deleting group:", groupId);
+
+    const response = await fetchWithTimeout(`${API_BASE_URL}/groups/${groupId}`, {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+
+    console.log("Delete group response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Delete group error response:", errorText);
+      throw new Error(
+        `Failed to delete group: ${response.status} - ${errorText}`
+      );
+    }
+
+    // Upstream might not return JSON; normalize
+    let payload: any = { success: true };
+    try {
+      payload = await response.json();
+    } catch {}
+    return payload ?? { success: true };
+  } catch (error) {
+    console.error("Error deleting group:", error);
+    throw error;
+  }
+}
+
 export async function fetchStudentsByClass(
   generationClassId: string
 ): Promise<StudentResponse[]> {

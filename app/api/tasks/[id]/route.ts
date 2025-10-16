@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 
-const REMOTE_BASE = "http://167.172.68.245:8084/api/v1/tasks";
+const REMOTE_BASE = "http://167.172.68.245:8088/api/v1/tasks";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
-  const url = `${REMOTE_BASE}/${encodeURIComponent(params.id)}`;
+  const { id } = await ctx.params;
+  const url = `${REMOTE_BASE}/${encodeURIComponent(id)}`;
   try {
     const body = await request.json();
     const res = await fetch(url, {
@@ -39,11 +40,12 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  ctx: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
   const accessToken = (session as any)?.accessToken as string | undefined;
-  const url = `${REMOTE_BASE}/${encodeURIComponent(params.id)}`;
+  const { id } = await ctx.params;
+  const url = `${REMOTE_BASE}/${encodeURIComponent(id)}`;
   try {
     const res = await fetch(url, {
       method: "DELETE",

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 
-const REMOTE_BASE = "http://167.172.68.245:8084/api/v1/tasks";
+const REMOTE_BASE = "http://167.172.68.245:8088/api/v1/tasks";
 
 export async function GET(request: Request) {
   const session = await auth();

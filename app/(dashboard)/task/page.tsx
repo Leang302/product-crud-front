@@ -31,7 +31,7 @@ export default function TaskManagementPage() {
     setIsLoading(true)
     try {
       const res = await fetch(
-        "/api/tasks?page=0&size=10&sortBy=CREATED_AT&direction=DESC",
+        "/api/tasks?page=1&size=10&sortBy=CREATED_AT&direction=DESC",
         { cache: "no-store" }
       )
       const data = await res.json()
@@ -94,11 +94,21 @@ export default function TaskManagementPage() {
           const form = new FormData()
           form.append("file", att.file)
           const uploadRes = await fetch("/api/files/upload-file", { method: "POST", body: form })
-          const uploadJson = await uploadRes.json()
-          // Expecting upstream to return something like { payload: { url: string } } or direct url
-          const url = uploadJson?.payload?.url || uploadJson?.url || uploadJson?.data?.url
-          if (url) {
-            uploadedLinks.push({ title: att.name, type: "LINK", link: String(url) })
+          const text = await uploadRes.text()
+          let parsed: any = undefined
+          try { parsed = text ? JSON.parse(text) : undefined } catch {}
+          const candidate = parsed || text
+          const link = (
+            candidate?.payload?.url ||
+            candidate?.payload?.link ||
+            candidate?.payload?.fileUrl ||
+            candidate?.payload?.id ||
+            candidate?.data?.url ||
+            candidate?.url ||
+            candidate
+          )
+          if (link) {
+            uploadedLinks.push({ title: att.name, type: "LINK", link: String(link) })
           }
         }
       }
@@ -106,14 +116,25 @@ export default function TaskManagementPage() {
       // 2) Build task payload per upstream API
       const toIsoUtc = (d?: string) => (d ? new Date(d).toISOString() : undefined)
       const nowIso = new Date().toISOString()
+      // Normalize task type to match backend enums
+      const mapTaskType = (v?: string) => {
+        const t = String(v || "class-session").toLowerCase()
+        if (t === "class-session" || t === "class_session") return "CLASS_SESSION"
+        if (t === "presentation") return "PRESENTATION"
+        if (t === "assignment") return "ASSIGNMENT"
+        // Fallback any unknown (e.g., examination/exam) to a safe default accepted by backend
+        return "CLASS_SESSION"
+      }
+
       const payload: any = {
         title: data.title,
-        instructions: data.instructions,
+        instructions: data.instructions ?? "",
         isIndividual: data.submissionType === "individual",
-        taskType: data.taskType === "class-session" ? "CLASS_SESSION" : data.taskType.toUpperCase(),
+        taskType: mapTaskType(data.taskType),
         isRequired: true,
         deadline: toIsoUtc(data.dueDate) || nowIso,
         startDate: toIsoUtc(data.startDate) || nowIso,
+        attachments: [],
       }
 
       if (uploadedLinks.length > 0) {
@@ -126,6 +147,7 @@ export default function TaskManagementPage() {
         }))
       }
 
+      console.log("[create-task] payload", JSON.stringify(payload))
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -155,6 +177,54 @@ export default function TaskManagementPage() {
       const nowIso = new Date().toISOString()
       const title = data.title ?? selectedTask.title
       const instructions = data.instructions ?? selectedTask.instructions ?? ""
+      // Merge and upload attachments: keep existing links and append any new files
+      const mergedAttachments: Array<{ title: string; type: string; link: string; createdAt: string; updatedAt: string }> = []
+      const currentAttachments = Array.isArray(data.attachments)
+        ? data.attachments
+        : Array.isArray(selectedTask.attachments)
+        ? selectedTask.attachments
+        : []
+
+      for (const att of currentAttachments as any[]) {
+        if (att?.file instanceof File) {
+          const form = new FormData()
+          form.append("file", att.file)
+          const uploadRes = await fetch("/api/files/upload-file", { method: "POST", body: form })
+          const text = await uploadRes.text()
+          let parsed: any = undefined
+          try { parsed = text ? JSON.parse(text) : undefined } catch {}
+          const candidate = parsed || text
+          const link = (
+            candidate?.payload?.url ||
+            candidate?.payload?.link ||
+            candidate?.payload?.fileUrl ||
+            candidate?.payload?.id ||
+            candidate?.data?.url ||
+            candidate?.url ||
+            candidate
+          )
+          if (link) {
+            mergedAttachments.push({
+              title: String(att?.name ?? att?.title ?? "Attachment"),
+              type: "LINK",
+              link: String(link),
+              createdAt: nowIso,
+              updatedAt: nowIso,
+            })
+          }
+        } else {
+          const existingLink = att?.link || att?.url
+          if (existingLink) {
+            mergedAttachments.push({
+              title: String(att?.title ?? att?.name ?? "Attachment"),
+              type: "LINK",
+              link: String(existingLink),
+              createdAt: String(att?.createdAt ?? nowIso),
+              updatedAt: nowIso,
+            })
+          }
+        }
+      }
       const payload: any = {
         title,
         instructions,
@@ -166,6 +236,7 @@ export default function TaskManagementPage() {
         isRequired: true,
         deadline: toIsoUtc((data as any).dueDate ?? selectedTask.dueDate) || nowIso,
         startDate: toIsoUtc((data as any).startDate ?? selectedTask.startDate) || nowIso,
+        attachments: mergedAttachments,
       }
 
       const res = await fetch(`/api/tasks/${encodeURIComponent(selectedTask.id)}` ,{

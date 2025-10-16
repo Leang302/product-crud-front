@@ -76,7 +76,7 @@ export function FileUploadZone({ files, onChange, maxSize = 50 }: FileUploadZone
         <Upload className="mb-4 h-10 w-10 text-muted-foreground" />
         <p className="mb-2 text-center font-medium">Drag and drop your files</p>
         <p className="mb-4 text-center text-sm text-muted-foreground">
-          Use URL, PDF (.pdf), Image (.PNG, .JPEG) - up to {maxSize}MB
+          Use URL, PDF (.pdf), Image (.PNG, .JPEG, .JPG) - up to {maxSize}MB
         </p>
         <label htmlFor="file-upload">
           <Button type="button" variant="outline" size="sm" asChild>
@@ -96,10 +96,19 @@ export function FileUploadZone({ files, onChange, maxSize = 50 }: FileUploadZone
       {files.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium">Uploaded Files</h4>
-          {files.map((file) => (
-            <div key={file.id} className="flex items-center justify-between rounded-lg border bg-card p-3">
+          {files.map((file, index) => (
+            <div key={file.id || `${file.name}-${file.size}-${index}`} className="flex items-center justify-between rounded-lg border bg-card p-3">
               <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-muted-foreground" />
+                {file.file && file.file.type?.startsWith("image/") ? (
+                  // Image thumbnail preview
+                  <img
+                    src={URL.createObjectURL(file.file)}
+                    alt={file.name}
+                    className="h-10 w-10 rounded object-cover border"
+                  />
+                ) : (
+                  <FileText className="h-5 w-5 text-muted-foreground" />
+                )}
                 <div>
                   <p className="text-sm font-medium">{file.name}</p>
                   <p className="text-xs text-muted-foreground">
