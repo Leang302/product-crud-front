@@ -1,180 +1,282 @@
-"use client"
+"use client";
 
-import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/app/(dashboard)/task/_components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/app/(dashboard)/task/_components/ui/input"
-import { Label } from "@/app/(dashboard)/task/_components/ui/label"
-import { X, Plus, Users } from "lucide-react"
-import { getStudents } from "../_lib/mock-api"
-import type { Student, Group } from "../_lib/types"
+import { useState, useEffect } from "react";
+import { Button } from "@/app/(dashboard)/task/_components/ui/button";
+import { Input } from "@/app/(dashboard)/task/_components/ui/input";
+import { Label } from "@/app/(dashboard)/task/_components/ui/label";
+import { Checkbox } from "@/app/(dashboard)/task/_components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/(dashboard)/task/_components/ui/dialog";
+import type { StudentResponse, CreateGroupRequest } from "../_lib/types";
 
 interface CreateGroupDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  classroomId: string
-  onSave: (data: Partial<Group>) => Promise<void>
-  editGroup?: Group | null
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  generationClassId: string;
+  onGroupCreated: () => void;
 }
 
-export function CreateGroupDialog({ open, onOpenChange, classroomId, onSave, editGroup }: CreateGroupDialogProps) {
-  const [groupName, setGroupName] = useState("")
-  const [selectedStudents, setSelectedStudents] = useState<Student[]>([])
-  const [availableStudents, setAvailableStudents] = useState<Student[]>([])
-  const [showStudentList, setShowStudentList] = useState(false)
-  const [loading, setLoading] = useState(false)
+export function CreateGroupDialog({
+  open,
+  onOpenChange,
+  generationClassId,
+  onGroupCreated,
+}: CreateGroupDialogProps) {
+  const [groupName, setGroupName] = useState("");
+  const [students, setStudents] = useState<StudentResponse[]>([]);
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      loadStudents()
-      if (editGroup) {
-        setGroupName(editGroup.name)
-        setSelectedStudents(editGroup.students)
-      } else {
-        setGroupName("")
-        setSelectedStudents([])
+  // Real API functions
+  const fetchStudentsByClass = async (
+    generationClassId: string
+  ): Promise<StudentResponse[]> => {
+    try {
+      console.log(`Fetching students for class: ${generationClassId}`);
+      const response = await fetch(
+        `/api/users/students/class/${generationClassId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        // Treat 404 as empty list so UI shows "No students found in this class"
+        if (response.status === 404) {
+          return [];
+        }
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to fetch students: ${response.status} - ${errorText}`
+        );
       }
+
+      const data = await response.json();
+      const rawItems = data.payload?.items || data.payload || [];
+      // Normalize to { id, name, email }
+      const students: StudentResponse[] = (rawItems as any[])
+        .map((item) => {
+          const normalizedId =
+            item?.id ||
+            item?.userId ||
+            item?.studentId ||
+            item?.user?.id ||
+            null;
+          const normalizedName =
+            item?.name ||
+            item?.fullName ||
+            item?.username ||
+            item?.user?.name ||
+            "Unknown";
+          const normalizedEmail =
+            item?.email || item?.emailAddress || item?.user?.email || "";
+          return normalizedId
+            ? {
+                id: String(normalizedId),
+                name: String(normalizedName),
+                email: String(normalizedEmail),
+              }
+            : null;
+        })
+        .filter(Boolean) as StudentResponse[];
+      console.log(`Fetched ${students.length} students (normalized)`);
+      return students;
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      throw error;
     }
-  }, [open, editGroup])
+  };
+
+  const createGroup = async (groupData: CreateGroupRequest): Promise<any> => {
+    try {
+      console.log("Creating group:", groupData);
+      const response = await fetch("/api/groups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(groupData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to create group: ${response.status} - ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+      console.log("Create group response data:", data);
+      return data;
+    } catch (error) {
+      console.error("Error creating group:", error);
+      throw error;
+    }
+  };
+
+  // Fetch students when dialog opens
+  useEffect(() => {
+    if (open && generationClassId) {
+      loadStudents();
+    }
+  }, [open, generationClassId]);
 
   const loadStudents = async () => {
-    const students = await getStudents()
-    setAvailableStudents(students)
-  }
-
-  const handleAddStudent = (student: Student) => {
-    if (!selectedStudents.find((s) => s.id === student.id)) {
-      setSelectedStudents([...selectedStudents, student])
+    setStudentsLoading(true);
+    setError(null);
+    try {
+      const data = await fetchStudentsByClass(generationClassId);
+      setStudents(data);
+    } catch (error) {
+      console.error("Error loading students:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load students"
+      );
+    } finally {
+      setStudentsLoading(false);
     }
-    setShowStudentList(false)
-  }
+  };
 
-  const handleRemoveStudent = (studentId: string) => {
-    setSelectedStudents(selectedStudents.filter((s) => s.id !== studentId))
-  }
+  const handleStudentToggle = (studentId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedStudentIds([...selectedStudentIds, studentId]);
+    } else {
+      setSelectedStudentIds(
+        selectedStudentIds.filter((id) => id !== studentId)
+      );
+    }
+  };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      setError("Group name is required");
+      return;
+    }
+
+    // Ensure only valid, non-empty IDs are sent
+    const validUserIds = selectedStudentIds.filter((id) => !!id);
+    if (validUserIds.length === 0) {
+      setError("Please select at least one student");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
 
     try {
-      await onSave({
-        ...(editGroup && { id: editGroup.id }),
-        name: groupName,
-        classroomId,
-        studentIds: selectedStudents.map((s) => s.id),
-        students: selectedStudents,
-      })
-      setGroupName("")
-      setSelectedStudents([])
-      onOpenChange(false)
+      const groupData: CreateGroupRequest = {
+        groupName: groupName.trim(),
+        generationClassId,
+        userIds: Array.from(new Set(validUserIds)),
+      };
+
+      await createGroup(groupData);
+
+      // Reset form
+      setGroupName("");
+      setSelectedStudentIds([]);
+
+      // Close dialog and refresh
+      onOpenChange(false);
+      onGroupCreated();
     } catch (error) {
-      console.error("Error saving group:", error)
+      console.error("Error creating group:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to create group"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleClose = () => {
+    setGroupName("");
+    setSelectedStudentIds([]);
+    setError(null);
+    onOpenChange(false);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">{editGroup ? "Edit Group" : "Create New Group"}</DialogTitle>
-          <p className="text-sm text-gray-500">Fill in the group details and assign members</p>
+          <DialogTitle>Create New Group</DialogTitle>
+          <DialogDescription>
+            Create a new group and select students to add to it.
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="groupName" className="text-sm font-medium">
-              Group name
-            </Label>
+            <Label htmlFor="groupName">Group Name</Label>
             <Input
               id="groupName"
-              placeholder="Group name"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              required
-              className="w-full"
+              placeholder="Enter group name"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Assign member</Label>
-            <div className="relative">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-start text-gray-500 bg-transparent"
-                onClick={() => setShowStudentList(!showStudentList)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add members
-              </Button>
-
-              {showStudentList && (
-                <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {availableStudents.map((student) => (
-                    <button
-                      key={student.id}
-                      type="button"
-                      onClick={() => handleAddStudent(student)}
-                      className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+            <Label>Select Students</Label>
+            {studentsLoading ? (
+              <div className="text-sm text-gray-500">Loading students...</div>
+            ) : students.length === 0 ? (
+              <div className="text-sm text-gray-500">
+                No students found in this class
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-2 border rounded-md p-3">
+                {students.map((student) => (
+                  <div key={student.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={student.id}
+                      checked={selectedStudentIds.includes(student.id)}
+                      onCheckedChange={(checked) =>
+                        handleStudentToggle(student.id, checked as boolean)
+                      }
+                    />
+                    <Label
+                      htmlFor={student.id}
+                      className="text-sm font-normal cursor-pointer"
                     >
-                      <Users className="w-4 h-4 text-gray-400" />
-                      <div>
-                        <div className="text-sm font-medium">{student.name}</div>
-                        <div className="text-xs text-gray-500">{student.email}</div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selectedStudents.length > 0 && (
-              <div className="mt-3 space-y-2">
-                {selectedStudents.map((student) => (
-                  <div
-                    key={student.id}
-                    className="flex items-center justify-between p-2 bg-blue-50 rounded-lg border border-blue-100"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium">{student.name}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveStudent(student.id)}
-                      className="h-6 w-6 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
+                      {student.name} ({student.email})
+                    </Label>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !groupName || selectedStudents.length === 0}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {loading ? (editGroup ? "Updating..." : "Creating...") : editGroup ? "Update" : "Create"}
-            </Button>
-          </div>
-        </form>
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleCreateGroup} disabled={loading}>
+            {loading ? "Creating..." : "Create Group"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
-
-
