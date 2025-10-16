@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { ChevronDown, LogOut, User } from "lucide-react";
 import {
@@ -17,9 +17,17 @@ import { toast } from "@/app/(dashboard)/task/_components/ui/use-toast";
 
 export default function UserMenu() {
   const { data } = useSession();
+  const [mounted, setMounted] = useState(false);
   const name = data?.user?.name || "User";
-  const role = (data as any)?.role as string | undefined;
+  const role = (data?.user as any)?.role as string | undefined;
   const [open, setOpen] = useState(false);
+
+  // Avoid hydration mismatches by rendering after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
   return (
     <>
       <button
