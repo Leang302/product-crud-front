@@ -1,5 +1,8 @@
 // Use Next.js API routes to avoid CORS issues
-export const API_BASE = "/api/auth";
+import {apiRequest} from "@/services/api";
+import {LoginResponse, LoginSchemaType} from "@/types";
+
+export const API_BASE = "/auths";
 
 async function handleResponse<T>(res: Response): Promise<T> {
   const text = await res.text();
@@ -49,3 +52,11 @@ export default {
   validateOTP,
   resetPassword,
 };
+
+export const loginService = async (req: LoginSchemaType) => {
+  return await apiRequest<LoginResponse, LoginSchemaType>("/auths/login", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: req
+  });
+}

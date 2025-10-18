@@ -11,43 +11,58 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LoginSchema, type LoginForm } from "@/types";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { signIn } from "next-auth/react";
 import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { useRouter, useSearchParams } from "next/navigation";
+import {LoginSchema, LoginSchemaType} from "@/types";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams?.get("callbackUrl") || "/dashboard";
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
+  } = useForm<LoginSchemaType>({
     resolver: zodResolver(LoginSchema),
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: LoginSchemaType) => {
     setIsLoading(true);
     try {
       const res = await signIn("credentials", {
         email: data.email,
         password: data.password,
-        redirect: true,
-        callbackUrl: "/dashboard", // NextAuth will redirect to dashboard, middleware will handle role-based redirect
+        redirect: false,
+        callbackUrl,
       });
 
-      // This code won't execute if redirect is successful
-      if (res?.error) {
-        toast({
-          title: "Sign in failed",
-          description:
-            res.error || "Invalid credentials. Please check and try again.",
-          variant: "destructive" as any,
-        });
+      if (res?.ok) {
+        // Prefer server-decided redirect target
+        const url = res.url || callbackUrl;
+        router.push(url);
+        return;
       }
+
+      const errorMessage =
+        res?.error === "CredentialsSignin"
+          ? "Invalid email or password."
+          : res?.error === "Configuration"
+          ? "Server configuration error. Please try again later."
+          : res?.error === "AccessDenied"
+          ? "Access denied. Please check your credentials."
+          : res?.error || "Sign in failed. Please try again.";
+      toast({
+        title: "Sign in failed",
+        description: errorMessage,
+        variant: "destructive" as any,
+      });
     } catch (e: any) {
       toast({
         title: "Login failed",

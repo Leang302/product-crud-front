@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    BASE_API_URL: "http://128.199.251.237:8088/api/v1",
+  },
+
   // config options here
   images: {
     domains: ["api.placeholder.com"],

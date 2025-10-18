@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
 import { UserRole } from "@/types";
 import { getDefaultRedirectUrl } from "@/lib/permissions";
+import {auth} from "@/auth";
 
-export default auth((req) => {
+export default auth((req: any) => {
   const session = req.auth as any | null;
   const { pathname } = req.nextUrl;
   const userRole = session?.user?.role as UserRole | undefined;

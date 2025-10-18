@@ -3,6 +3,7 @@ import {
   CreateDepartmentInput,
   UpdateDepartmentInput,
 } from "@/types";
+import { getServerAccessToken } from "@/lib/auth";
 
 // Proxy through Next.js to avoid CORS and ensure cookies/session are used
 const BASE = "/api/departments";
@@ -61,11 +62,12 @@ export const DepartmentService = {
     if (params?.sortBy) query.set("sortBy", params.sortBy);
     if (params?.sortDirection) query.set("sortDirection", params.sortDirection);
     const url = query.size ? `${BASE}?${query.toString()}` : BASE;
+    const token = accessToken ?? (await getServerAccessToken());
     const res = await fetch(url, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader(accessToken),
+        ...authHeader(token),
       },
       cache: "no-store",
     });
@@ -83,11 +85,12 @@ export const DepartmentService = {
   },
 
   async getById(id: string, accessToken?: string): Promise<Department> {
+    const token = accessToken ?? (await getServerAccessToken());
     const res = await fetch(`${BASE}/${id}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader(accessToken),
+        ...authHeader(token),
       },
       cache: "no-store",
     });
@@ -98,11 +101,12 @@ export const DepartmentService = {
     payload: CreateDepartmentInput,
     accessToken?: string
   ): Promise<Department> {
+    const token = accessToken ?? (await getServerAccessToken());
     const res = await fetch(BASE, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader(accessToken),
+        ...authHeader(token),
       },
       body: JSON.stringify(payload),
     });
@@ -114,11 +118,12 @@ export const DepartmentService = {
     payload: UpdateDepartmentInput,
     accessToken?: string
   ): Promise<Department> {
+    const token = accessToken ?? (await getServerAccessToken());
     const res = await fetch(`${BASE}/${id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader(accessToken),
+        ...authHeader(token),
       },
       body: JSON.stringify(payload),
     });
@@ -129,11 +134,12 @@ export const DepartmentService = {
     id: string,
     accessToken?: string
   ): Promise<{ success: boolean } | void> {
+    const token = accessToken ?? (await getServerAccessToken());
     const res = await fetch(`${BASE}/${id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        ...authHeader(accessToken),
+        ...authHeader(token),
       },
     });
     if (res.status === 204) return { success: true };

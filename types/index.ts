@@ -17,6 +17,40 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema>;
 
+// Schemas
+export const AuthUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string().optional(),
+  role: z.enum(["admin", "teacher", "student"]),
+});
+export type AuthUser = z.infer<typeof AuthUserSchema>;
+
+export const LoginResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+  status: z.string(),
+  payload: z.object({
+    token: z.string(),
+    expiresIn: z.number(),
+    refreshExpiresIn: z.number(),
+    refreshToken: z.string(),
+    tokenType: z.string(),
+    idToken: z.string(),
+    notBeforePolicy: z.number(),
+    sessionState: z.string(),
+    scope: z.string().nullable(),
+  }),
+  timestamps: z.string(),
+});
+export type LoginResponse = z.infer<typeof LoginResponseSchema>;
+
+export const SessionSchema = z.object({
+  user: AuthUserSchema.nullable(),
+  expires: z.string().optional(),
+});
+export type SessionResponse = z.infer<typeof SessionSchema>;
+
 // Task types
 export const TaskTypeSchema = z.enum([
   "assignment",
@@ -79,8 +113,9 @@ export type Class = z.infer<typeof ClassSchema>;
 // Auth types
 export const LoginSchema = z.object({
   email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
+export type LoginSchemaType = z.infer<typeof LoginSchema>;
 
 export const ForgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -91,7 +126,7 @@ export const ChangePasswordSchema = z
     currentPassword: z.string().min(6, "Current password is required"),
     newPassword: z
       .string()
-      .min(6, "New password must be at least 6 characters"),
+      .min(8, "New password must be at least 8 characters"),
     confirmPassword: z.string().min(6, "Please confirm your password"),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
