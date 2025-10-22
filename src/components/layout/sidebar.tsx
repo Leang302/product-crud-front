@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/app/(dashboard)/task/_components/ui/alert-dialog";
-import { toast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { toast } from "@/components/ui/use-toast";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -34,6 +34,7 @@ import {
 import UserMenu from "@/components/topbar/UserMenu";
 import { extractRoleFromJWT } from "@/lib/jwt";
 import { hasPermission } from "@/lib/permissions";
+import { UserRole } from "@/types";
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -131,8 +132,6 @@ const Sidebar = ({ children }: SidebarProps) => {
 
   // Get visible navigation items based on user role
   const visibleNavigation = getVisibleNavigation(userRole);
-
-  console.log("Sidebar - Visible Navigation:", visibleNavigation);
 
   // Persist collapsed state across reloads
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { UserRole } from "@/types";
 import { getDefaultRedirectUrl } from "@/lib/permissions";
-import {auth} from "@/auth";
+import { auth } from "@/auth";
 
 export default auth((req: any) => {
   const session = req.auth as any | null;
@@ -14,13 +14,14 @@ export default auth((req: any) => {
 
   // If not authenticated and accessing protected routes, go to login
   const protectedMatchers = [
-    "/dashboard",
-    "/generation",
-    "/classroom",
-    "/department",
-    "/staff",
-    "/users",
-    "/task",
+    "",
+    // "/dashboard",
+    // "/generation",
+    // "/classroom",
+    // "/department",
+    // "/staff",
+    // "/users",
+    // "/task",
   ];
   const isProtected = protectedMatchers.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)

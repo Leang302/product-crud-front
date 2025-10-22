@@ -64,22 +64,14 @@ export function isTeacherOrAdmin(userRole: UserRole | undefined): boolean {
 
 // Get default redirect URL based on user role
 export function getDefaultRedirectUrl(userRole: UserRole | undefined): string {
-  console.log("getDefaultRedirectUrl - Input role:", userRole);
-
   switch (userRole) {
     case "admin":
-      console.log("getDefaultRedirectUrl - Admin role, returning /users");
       return "/users"; // Admin goes to user management
     case "teacher":
-      console.log("getDefaultRedirectUrl - Teacher role, returning /classroom");
       return "/classroom"; // Teacher goes to classroom management
     case "student":
-      console.log("getDefaultRedirectUrl - Student role, returning /task");
       return "/task"; // Student goes to task management
     default:
-      console.log(
-        "getDefaultRedirectUrl - No valid role, returning /dashboard"
-      );
       return "/dashboard"; // Fallback to dashboard
   }
 }

@@ -1,5 +1,5 @@
-import ClassroomScreen from "./_screens/ClassroomScreen";
+import React from "react";
 
-export default function ClassroomManagement() {
-  return <ClassroomScreen />;
+export default function page() {
+  return <div>page</div>;
 }
