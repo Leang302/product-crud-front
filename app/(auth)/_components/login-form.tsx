@@ -15,7 +15,6 @@ import { LoginFormData, loginSchema } from "@/lib/validation/auth-schema"
 
 export function LoginForm() {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const form = useForm<LoginFormData>({
@@ -39,14 +38,14 @@ export function LoginForm() {
         })
 
         if (result?.error) {
-          setError("Invalid username or password")
+          //add sooner toast
         } else {
           // Refresh the session and redirect
           router.push("/dashboard")
           router.refresh()
         }
       } catch (err) {
-        setError("An unexpected error occurred. Please try again.")
+      //add sooner
       }
     })
   }
@@ -90,11 +89,7 @@ export function LoginForm() {
             )}
           </div>
 
-          {error && (
-            <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive border border-destructive/20">
-              {error}
-            </div>
-          )}
+    
 
           <Button 
             type="submit" 

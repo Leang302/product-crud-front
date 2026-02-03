@@ -14,13 +14,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         const res = await loginService(credentials as LoginFormData);
         const data = await res.json()
+        const user = data.data.user;
     
 
         if (data.status.code === "AUTH_LOGIN_SUCCESS") {
           return {
-            id: data.data.user.userId,
-            name: data.data.user.username,
-            roles: data.data.user.roles,
+            id: user.userId,
+            name: user.username,
+            roles: user.roles,
             accessToken: data.data.accessToken,
             expiresAt: Date.now() + data.data.expiresIn * 1000
           }
