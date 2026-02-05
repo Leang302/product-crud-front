@@ -1,9 +1,5 @@
 'use client';
 
-import React from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -14,13 +10,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ProductWithId } from '@/lib/validation/product-schema';
+import { ChevronLeft, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 interface ProductTableProps {
   products: ProductWithId[];
   onEdit: (product: ProductWithId) => void;
   onDelete: (id: string) => void;
+  onView: (product: ProductWithId) => void;
   totalPages: number;
-  canWrite?:boolean
+  canWrite?: boolean;
 }
 
 export const ProductTable = ({
@@ -28,12 +27,12 @@ export const ProductTable = ({
   products,
   onEdit,
   onDelete,
+  onView,
   totalPages,
 }: ProductTableProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
   const currentPage = Number(searchParams.get('page')) || 0;
 
   const handlePageChange = (newPage: number) => {
@@ -55,13 +54,17 @@ export const ProductTable = ({
               <TableHead>Currency</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead>Created</TableHead>
-              {canWrite &&<TableHead className="text-right px-6">Actions</TableHead>}
+              {canWrite && <TableHead className="text-right px-6">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {products.length > 0 ? (
               products.map((item) => (
-                <TableRow key={item.id} className="group">
+                <TableRow
+                  key={item.id}
+                  className="group cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => onView(item)} // Clicking row triggers View
+                >
                   <TableCell className="font-mono text-xs font-semibold">{item.code}</TableCell>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell className="text-right font-mono">
@@ -69,33 +72,31 @@ export const ProductTable = ({
                   </TableCell>
                   <TableCell className="text-muted-foreground text-xs">{item.currency}</TableCell>
                   <TableCell className="text-center">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      item.status === 'ACTIVE' 
-                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20' 
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${item.status === 'ACTIVE'
+                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20'
                         : 'bg-slate-50 text-slate-600 ring-1 ring-inset ring-slate-500/10'
-                    }`}>
+                      }`}>
                       {item.status}
                     </span>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}
                   </TableCell>
-                   {canWrite &&
-                  <TableCell className="text-right px-6">
-                    <div className="flex justify-end gap-2 ">
-                      <Button variant="ghost" size="icon" onClick={() => onEdit(item)} className="h-8 w-8">
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => onDelete(item.id as string)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {/* Fallback for touch devices (mobile) where hover doesn't exist */}
-                    <div className="flex justify-end gap-2 group-hover:hidden sm:hidden">
-                       <Button variant="ghost" size="icon" onClick={() => onEdit(item)} className="h-8 w-8"><Edit2 className="h-4 w-4"/></Button>
-                    </div>
-                  </TableCell>
-}
+                  {canWrite && (
+                    <TableCell
+                      className="text-right px-6"
+                      onClick={(e) => e.stopPropagation()} // STOP row click here
+                    >
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => onEdit(item)} className="h-8 w-8">
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => onDelete(item.id as string)} className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             ) : (
@@ -109,6 +110,7 @@ export const ProductTable = ({
         </Table>
       </div>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between px-2">
         <p className="text-xs text-muted-foreground">
           Page {currentPage + 1} of {Math.max(totalPages, 1)}

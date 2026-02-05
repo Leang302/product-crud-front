@@ -3,7 +3,7 @@ import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { loginService } from "./lib/services/auth-service"
 import { AuthSchema } from "./lib/validation/auth-schema";
-import { InvalidLoginError } from "./app/errors/auth-error";
+import { InvalidLoginError } from "./types/errors/auth-error";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({

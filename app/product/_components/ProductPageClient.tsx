@@ -1,22 +1,17 @@
 'use client';
 
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { createProductAction, deleteProductAction, updateProductAction } from '@/lib/actions/product-action';
-import { Product, ProductWithId } from '@/lib/validation/product-schema';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
+
+import { createProductAction, deleteProductAction, updateProductAction } from '@/lib/actions/product-action';
+import { Product, ProductWithId } from '@/lib/validation/product-schema';
 import { CreateAndUpdateProductModal } from './CreateAndUpdateProductModal';
+import { ProductDeleteConfirmation } from './ProductDeleteConfirmation';
+import { ProductDetailsModal } from './ProductDetailsModal'; // Import New Modal
 import { ProductFilters } from './ProductFilter';
 import { ProductTable } from './ProductTable';
+
 export interface AllProductData {
   page: number;
   size: number;
@@ -27,34 +22,32 @@ export interface AllProductData {
 
 export default function ProductPageClient({ allProductsData, canWrite }: { allProductsData: AllProductData, canWrite?: boolean }) {
   const router = useRouter();
+
+  // State for Create/Edit
   const [openModal, setOpenModal] = useState(false);
-  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingProduct, setEditingProduct] = useState<ProductWithId | undefined>();
+
+  // State for View (Read Only)
+  const [openViewModal, setOpenViewModal] = useState(false);
+  const [viewProduct, setViewProduct] = useState<ProductWithId | null>(null);
+
+  // State for Delete
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const handleSaveProduct = async (formData: ProductWithId): Promise<boolean> => {
     try {
-      if (editingProduct) {
-        const result = await updateProductAction(formData.id as string, formData as Product);
+      const result = editingProduct
+        ? await updateProductAction(formData.id as string, formData as Product)
+        : await createProductAction(formData as Product);
 
-        if (result?.serverError) {
-          toast.error(result.serverError);
-          return false;
-        }
-        toast.success('Product updated successfully!');
-        return true;
-      } else {
-        const result = await createProductAction(formData as Product);
-
-        if (result?.serverError) {
-          toast.error(result.serverError);
-          return false;
-        }
-        toast.success('Product created successfully!');
-        return true;
+      if (result?.serverError) {
+        toast.error(result.serverError);
+        return false;
       }
+      toast.success(editingProduct ? 'Product updated!' : 'Product created!');
+      return true;
     } catch (error) {
-      console.error("Save Error:", error);
       toast.error("An unexpected error occurred");
       return false;
     }
@@ -65,13 +58,8 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
     startTransition(async () => {
       try {
         const result = await deleteProductAction(deleteId);
-        if (result?.serverError) {
-          toast.error(result.serverError);
-        } else {
-          toast.success("Product deleted successfully");
-
-
-        }
+        if (result?.serverError) toast.error(result.serverError);
+        else toast.success("Product deleted successfully");
       } catch (error) {
         toast.error("Failed to delete product");
       } finally {
@@ -99,9 +87,21 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
           setEditingProduct(p);
           setOpenModal(true);
         }}
+        onView={(p) => { // Added onView handler
+          setViewProduct(p);
+          setOpenViewModal(true);
+        }}
         onDelete={(id) => setDeleteId(id)}
       />
 
+      {/* Read Only Modal */}
+      <ProductDetailsModal
+        open={openViewModal}
+        setOpen={setOpenViewModal}
+        product={viewProduct}
+      />
+
+      {/* Create/Update Modal */}
       <CreateAndUpdateProductModal
         open={openModal}
         setOpen={setOpenModal}
@@ -110,29 +110,17 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
       />
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Deletion</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" disabled={isPending} onClick={() => setDeleteId(null)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={isPending}
-              onClick={confirmDelete}
-              className='ml-2'
-            >
-              {isPending ? "Deleting..." : "Delete Product"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
+      <ProductDeleteConfirmation
+        confirmDelete={confirmDelete}
+        deleteId={deleteId}
+        isPending={isPending}
+        setDeleteId={setDeleteId}
+      />
+
     </div>
   );
 }
+
+
+
