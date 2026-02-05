@@ -1,4 +1,4 @@
-import { AllProductData } from "@/app/product/_components/ProductPageClient";
+import { AllProductData } from "@/app/(home)/product/_components/ProductPageClient";
 import { Product } from "../validation/product-schema";
 import { apiRequest } from "./api-service";
 

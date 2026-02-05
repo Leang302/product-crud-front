@@ -83,6 +83,7 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
 
   return (
     <div className="space-y-6">
+      {/* product filter and search bar */}
       <ProductFilters
         canWrite={canWrite}
         onOpenCreateModal={() => {
@@ -90,7 +91,7 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
           setOpenModal(true);
         }}
       />
-
+      {/* product table and data */}
       <ProductTable
         canWrite={canWrite}
         products={allProductsData.items}
@@ -102,6 +103,7 @@ export default function ProductPageClient({ allProductsData, canWrite }: { allPr
         onDelete={(id) => setDeleteId(id)}
       />
 
+      {/* create and update product modal */}
       <CreateAndUpdateProductModal
         open={openModal}
         setOpen={setOpenModal}
