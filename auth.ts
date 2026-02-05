@@ -1,9 +1,9 @@
 // auth.ts (ROOT OF PROJECT)
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { loginService } from "./lib/validation/services/auth-service"
-import { LoginFormData } from "./lib/validation/auth-schema";
-
+import { loginService } from "./lib/services/auth-service"
+import { AuthSchema } from "./lib/validation/auth-schema";
+import { InvalidLoginError } from "./app/errors/auth-error";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -12,12 +12,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        const res = await loginService(credentials as LoginFormData);
+      
+ const res = await loginService(credentials as AuthSchema);
         const data = await res.json()
-        const user = data.data.user;
-    
-
-        if (data.status.code === "AUTH_LOGIN_SUCCESS") {
+        const user = data?.data?.user;
+        if (data?.status?.code === "AUTH_LOGIN_SUCCESS") {
           return {
             id: user.userId,
             name: user.username,
@@ -26,7 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             expiresAt: Date.now() + data.data.expiresIn * 1000
           }
         }
-        return null
+        throw new InvalidLoginError(data?.status?.message ?? "invalid_credentials")
       }
     })
   ],

@@ -1,56 +1,72 @@
-"use client"
+"use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react"; // IMPORTANT: Import from next-auth/react
-import { useRouter } from "next/navigation"; // Use Next router
-import { useTransition } from "react";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AuthSchema, authSchema } from "@/lib/validation/auth-schema";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { toast } from "sonner";
 
-export function LoginForm() {
-  const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+import { authSchema } from "@/lib/validation/auth-schema";
+import Link from "next/link";
+import { registerAction } from "@/lib/actions/auth-action";
 
-  const form = useForm<AuthSchema>({
-    resolver: zodResolver(authSchema),
+interface RegisterFormData {
+  username: string;
+  password: string;
+}
+
+export function RegisterForm() {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  const form = useForm<RegisterFormData>({
+    resolver: zodResolver(authSchema), // Reuse login schema
     defaultValues: {
       username: "",
       password: ""
     }
-  })
-  const onSubmit = (data: AuthSchema) => {
-    startTransition(async () => {
-      const result = await signIn("credentials", {
-        username: data.username,
-        password: data.password,
-        redirect: false,
-      })
+  });
 
-      if(result?.code){
-      toast.error(result.code)
+ const onSubmit = (data: RegisterFormData) => {
+    startTransition(async () => {
+      try {
+        const result = await registerAction({ ...data });
+
+        if (result?.errors) {
+          toast.error("Validation failed");
+    
+          return;
+        }
+
+        if (result?.serverError) {
+          toast.error(result.serverError);
+          return;
+        }
+
+        toast.success("Account created successfully!");
+
+         setTimeout(() => {
+        router.push("/login");
+      }, 300); 
+      } catch (err) {
+        toast.error("Something went wrong");
       }
-      else {
-        router.push("/product")
-        router.refresh()
-        toast.success("Login successful. Welcome back!");
-      }
-    })
-  }
+    });
+  };
 
   return (
-    <Card className="mx-auto max-w-sm w-full border-0 shadow-lg">
+    <Card className="mx-auto min-w-sm w-full border-0 shadow-lg">
       <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl text-center">Create Account</CardTitle>
         <CardDescription>
-          Enter your credentials to access your account
+          Register to start managing products
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -62,7 +78,7 @@ export function LoginForm() {
               {...form.register("username")}
               disabled={isPending}
               placeholder="Enter your username"
-              className={form.formState.errors.username ? "border-destructive" : ""}
+               className={form.formState.errors.username? "border-destructive" : ""}
             />
             {form.formState.errors.username && (
               <p className="text-xs text-destructive">
@@ -79,7 +95,7 @@ export function LoginForm() {
               {...form.register("password")}
               disabled={isPending}
               placeholder="Enter your password"
-              className={form.formState.errors.password ? "border-destructive" : ""}
+               className={form.formState.errors.password? "border-destructive" : ""}
             />
             {form.formState.errors.password && (
               <p className="text-xs text-destructive">
@@ -87,25 +103,19 @@ export function LoginForm() {
               </p>
             )}
           </div>
-          <p className="text-end text-sm">Don&apos;t have an account? <Link href="/register" className="text-blue-600 hover:underline">Register</Link></p>
-
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isPending}
-          >
+  <p className="text-end text-sm">Already have an account? <Link href="/login" className="text-blue-600 hover:underline">Login</Link></p>
+          <Button type="submit" className="w-full" disabled={isPending}>
             {isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
+                Registering...
               </>
             ) : (
-              "Sign In"
+              "Register"
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }
