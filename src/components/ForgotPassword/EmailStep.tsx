@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/app/(dashboard)/task/_components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Mail, ArrowRight } from "lucide-react";
-import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { requestOTPAction } from "@/action/authActions";
 
 interface EmailStepProps {
@@ -14,7 +14,7 @@ interface EmailStepProps {
 
 export default function EmailStep({
   onNext,
-  isLoading = false,
+  isLoading = false,o
 }: EmailStepProps) {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,7 +32,7 @@ export default function EmailStep({
       toast({
         title: "Email required",
         description: "Please enter your email address.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -41,7 +41,7 @@ export default function EmailStep({
       toast({
         title: "Invalid email",
         description: "Please enter a valid email address.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -59,14 +59,14 @@ export default function EmailStep({
         toast({
           title: "Failed to send OTP",
           description: result.message || "Please try again.",
-          variant: "destructive" as any,
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to send OTP",
-        description: error?.message || "Please try again.",
-        variant: "destructive" as any,
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);

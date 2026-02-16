@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/app/(dashboard)/task/_components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Shield, RotateCcw } from "lucide-react";
-import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { validateOTPAction, requestOTPAction } from "@/action/authActions";
 import CountdownTimer from "@/components/common/CountdownTimer";
 
@@ -59,7 +59,7 @@ export default function OTPStep({
       toast({
         title: "OTP required",
         description: "Please enter the 6-digit code.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -68,7 +68,7 @@ export default function OTPStep({
       toast({
         title: "Invalid OTP",
         description: "Please enter a valid 6-digit code.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -86,14 +86,17 @@ export default function OTPStep({
         toast({
           title: "Invalid OTP",
           description: result.message || "Please check your code and try again.",
-          variant: "destructive" as any,
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Invalid OTP",
-        description: error?.message || "Please check your code and try again.",
-        variant: "destructive" as any,
+        description:
+          error instanceof Error
+            ? error.message
+            : "Please check your code and try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -135,14 +138,14 @@ export default function OTPStep({
         toast({
           title: "Failed to resend OTP",
           description: result.message || "Please try again.",
-          variant: "destructive" as any,
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to resend OTP",
-        description: error?.message || "Please try again.",
-        variant: "destructive" as any,
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsResending(false);

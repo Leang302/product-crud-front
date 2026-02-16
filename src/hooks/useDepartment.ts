@@ -18,13 +18,13 @@ interface UseDepartmentReturn {
   isLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  getById: (id: number) => Promise<Department | null>;
+  getById: (id: string) => Promise<Department | null>;
   create: (data: CreateDepartmentInput) => Promise<Department | null>;
   update: (
-    id: number,
+    id: string,
     data: UpdateDepartmentInput
   ) => Promise<Department | null>;
-  remove: (id: number) => Promise<boolean>;
+  remove: (id: string) => Promise<boolean>;
 }
 
 export function useDepartment(
@@ -32,7 +32,7 @@ export function useDepartment(
 ): UseDepartmentReturn {
   const { autoload = true } = options;
   const { data: session } = useSession();
-  const accessToken = (session as any)?.accessToken as string | undefined;
+  const accessToken = session?.accessToken;
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +43,8 @@ export function useDepartment(
     try {
       const data = await DepartmentService.list(accessToken);
       setDepartments(data);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load departments");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load departments");
     } finally {
       setIsLoading(false);
     }
@@ -65,8 +65,8 @@ export function useDepartment(
       try {
         const item = await DepartmentService.getById(id, accessToken);
         return item;
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to get department");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to get department");
         return null;
       } finally {
         setIsLoading(false);
@@ -83,8 +83,8 @@ export function useDepartment(
         const created = await DepartmentService.create(data, accessToken);
         setDepartments((prev) => [...prev, created]);
         return created;
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to create department");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to create department");
         return null;
       } finally {
         setIsLoading(false);
@@ -103,8 +103,8 @@ export function useDepartment(
           prev.map((d) => (d.id === updated.id ? updated : d))
         );
         return updated;
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to update department");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to update department");
         return null;
       } finally {
         setIsLoading(false);
@@ -121,8 +121,8 @@ export function useDepartment(
         await DepartmentService.remove(id, accessToken);
         setDepartments((prev) => prev.filter((d) => d.id !== id));
         return true;
-      } catch (e: any) {
-        setError(e?.message ?? "Failed to delete department");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Failed to delete department");
         return false;
       } finally {
         setIsLoading(false);

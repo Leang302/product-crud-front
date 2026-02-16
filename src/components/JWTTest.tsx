@@ -10,7 +10,7 @@ export default function JWTTest() {
     return <div>No session</div>;
   }
 
-  const accessToken = (session as any).accessToken;
+  const accessToken = session.accessToken;
 
   if (!accessToken) {
     return <div>No access token</div>;

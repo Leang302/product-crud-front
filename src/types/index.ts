@@ -27,21 +27,22 @@ export const AuthUserSchema = z.object({
 export type AuthUser = z.infer<typeof AuthUserSchema>;
 
 export const LoginResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-  status: z.string(),
-  payload: z.object({
-    token: z.string(),
-    expiresIn: z.number(),
-    refreshExpiresIn: z.number(),
-    refreshToken: z.string(),
-    tokenType: z.string(),
-    idToken: z.string(),
-    notBeforePolicy: z.number(),
-    sessionState: z.string(),
-    scope: z.string().nullable(),
+  status: z.object({
+    code: z.string(),
+    message: z.string(),
   }),
-  timestamps: z.string(),
+  data: z
+    .object({
+      accessToken: z.string(),
+      tokenType: z.string(),
+      expiresIn: z.number(),
+      user: z.object({
+        userId: z.string(),
+        username: z.string(),
+        roles: z.array(z.string()),
+      }),
+    })
+    .nullable(),
 });
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
@@ -112,8 +113,8 @@ export type Class = z.infer<typeof ClassSchema>;
 
 // Auth types
 export const LoginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
 });
 export type LoginSchemaType = z.infer<typeof LoginSchema>;
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
-import { Toaster } from "@/app/(dashboard)/task/_components/ui/toaster";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,8 +13,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HRD Portal - School Management System",
-  description: "Internal school system for managing users, classes, and tasks",
+  title: "Product Management System",
 };
 
 export default function RootLayout({

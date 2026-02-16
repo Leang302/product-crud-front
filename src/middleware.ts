@@ -1,64 +1,46 @@
 import { NextResponse } from "next/server";
-import { UserRole } from "@/types";
-import { getDefaultRedirectUrl } from "@/lib/permissions";
+import type { NextRequest } from "next/server";
+import type { Session } from "next-auth";
+
 import { auth } from "@/auth";
 
-export default auth((req: any) => {
-  const session = req.auth as any | null;
+type AuthRequest = NextRequest & { auth: Session | null };
+
+// Define role-based route protection rules
+const ADMIN_ROUTES = ["/admin", "/admin/"];
+const TEACHER_ROUTES = ["/teacher", "/teacher/"];
+
+export default auth((req: AuthRequest) => {
+  const session = req.auth;
   const { pathname } = req.nextUrl;
-  const userRole = session?.user?.role as UserRole | undefined;
+  const roles = session?.user?.roles ?? [];
 
-  console.log("Middleware(v5) - Pathname:", pathname);
-  console.log("Middleware(v5) - Authenticated:", !!session);
-  console.log("Middleware(v5) - User Role:", userRole);
+  const isAuthRoute = pathname === "/login" || pathname === "/register";
+  const isProductRoute = pathname === "/product" || pathname.startsWith("/product/");
+  const isAdminRoute = ADMIN_ROUTES.some((route) => pathname.startsWith(route));
+  const isTeacherRoute = TEACHER_ROUTES.some((route) => pathname.startsWith(route));
 
-  // If not authenticated and accessing protected routes, go to login
-  const protectedMatchers = [
-    "",
-    // "/dashboard",
-    // "/generation",
-    // "/classroom",
-    // "/department",
-    // "/staff",
-    // "/users",
-    // "/task",
-  ];
-  const isProtected = protectedMatchers.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`)
-  );
-  if (!session && isProtected) {
+  // Not authenticated
+  if (!session) {
+    if (isAuthRoute) return NextResponse.next();
+
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
+    loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // Define role-based access for each route
-  const roleAccess: Record<string, UserRole[]> = {
-    "/classroom": ["admin", "teacher"],
-    "/task": ["admin", "teacher", "student"],
-    "/users": ["admin", "teacher"],
-    "/generation": ["admin", "teacher"],
-    "/department": ["admin", "teacher"],
-    "/staff": ["admin", "teacher"],
-  };
-
-  // Redirect dashboard to role-specific page
-  if (pathname === "/dashboard" && session) {
-    const defaultUrl = getDefaultRedirectUrl(userRole);
-    return NextResponse.redirect(new URL(defaultUrl, req.url));
+  // Role-based route protection
+  if (isAdminRoute && !roles.includes("ADMIN")) {
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
   }
 
-  // Check if user has access to the current route
-  const routeAccess = Object.entries(roleAccess).find(([route]) =>
-    pathname.startsWith(route)
-  );
+  if (isTeacherRoute && !roles.includes("TEACHER") && !roles.includes("ADMIN")) {
+    return NextResponse.redirect(new URL("/unauthorized", req.url));
+  }
 
-  if (routeAccess) {
-    const [, allowedRoles] = routeAccess;
-    if (!userRole || !allowedRoles.includes(userRole)) {
-      const defaultUrl = getDefaultRedirectUrl(userRole);
-      return NextResponse.redirect(new URL(defaultUrl, req.url));
-    }
+  // Logged in: redirect auth routes to product
+  if (isAuthRoute) {
+    return NextResponse.redirect(new URL("/product", req.url));
   }
 
   return NextResponse.next();
@@ -66,12 +48,6 @@ export default auth((req: any) => {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/generation/:path*",
-    "/classroom/:path*",
-    "/department/:path*",
-    "/staff/:path*",
-    "/users/:path*",
-    "/task/:path*",
+    "/((?!api/auth|_next/static|_next/image|favicon.ico).*)",
   ],
 };

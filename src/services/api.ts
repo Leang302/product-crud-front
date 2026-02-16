@@ -1,7 +1,6 @@
 // src/services/api.ts
+import headerToken from "@/lib/headerToken";
 import "server-only";
-import { auth } from "@/auth";
-import { headerToken } from "@/lib/headerToken";
 
 export const apiRequest = async <TResponse, TRequest = unknown>(
   endpoint: string,
@@ -10,7 +9,7 @@ export const apiRequest = async <TResponse, TRequest = unknown>(
   const { body, ...rest } = options;
 
   const response = await fetch(
-    `${process.env.BASE_API_URL}${endpoint}`,
+    `${process.env.API_BASE_URL}${endpoint}`,
     {
       ...rest,
       headers: {

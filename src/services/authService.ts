@@ -1,62 +1,25 @@
-// Use direct API calls instead of Next.js API routes
-import { LoginResponse, LoginSchemaType } from "@/types";
+import { LoginResponseSchema, type LoginResponse, type LoginSchemaType } from "@/types";
 
-const API_BASE_URL = "http://167.172.68.245:8088/api/v1";
+const API_BASE_URL = process.env.BASE_API_URL;
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const text = await res.text();
-  const json = text ? JSON.parse(text) : undefined;
-
-  if (!res.ok) {
-    const error = new Error(
-      json?.message || res.statusText || "Request failed"
-    );
-    (error as any).response = { data: json };
-    (error as any).status = res.status;
-    throw error;
-  }
-
-  return json as T;
-}
-
-export const requestOTP = async (email: string) => {
-  const res = await fetch(`${API_BASE_URL}/auth/forget-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  return handleResponse(res);
-};
-
-export const validateOTP = async (email: string, otpCode: string) => {
-  const res = await fetch(`${API_BASE_URL}/auth/validate-otp`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, otpCode }),
-  });
-  return handleResponse(res);
-};
-
-export const resetPassword = async (email: string, newPassword: string) => {
-  const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, newPassword }),
-  });
-  return handleResponse(res);
-};
-
-export default {
-  requestOTP,
-  validateOTP,
-  resetPassword,
-};
-
-export const loginService = async (req: LoginSchemaType) => {
-  const res = await fetch(`${API_BASE_URL}/auth/login`, {
+export const loginService = async (req: LoginSchemaType): Promise<LoginResponse> => {
+  const res = await fetch(`${API_BASE_URL}/auths/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(req),
   });
-  return handleResponse<LoginResponse>(res);
+console.log("login request",req)
+  const text = await res.text();
+  const json: unknown = text ? JSON.parse(text) : null;
+  const parsed = LoginResponseSchema.safeParse(json);
+
+  if (!parsed.success) {
+    throw new Error(res.statusText || "Request failed");
+  }
+
+  if (!res.ok || parsed.data.data === null) {
+    throw new Error(`${parsed.data.status.code}: ${parsed.data.status.message}`);
+  }
+
+  return parsed.data;
 };

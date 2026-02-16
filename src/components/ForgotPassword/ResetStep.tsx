@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/app/(dashboard)/task/_components/ui/input";
+import { Input } from "@/components/ui/input";
 import { Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
-import { useToast } from "@/app/(dashboard)/task/_components/ui/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 import { resetPasswordAction } from "@/action/authActions";
 import { useRouter } from "next/navigation";
 
@@ -61,7 +61,7 @@ export default function ResetStep({
       toast({
         title: "Password required",
         description: "Please enter a new password.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -71,7 +71,7 @@ export default function ResetStep({
         title: "Weak password",
         description:
           "Password must be at least 8 characters with uppercase, lowercase, number, and special character.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -80,7 +80,7 @@ export default function ResetStep({
       toast({
         title: "Passwords don't match",
         description: "Please make sure both passwords are the same.",
-        variant: "destructive" as any,
+        variant: "destructive",
       });
       return;
     }
@@ -108,14 +108,14 @@ export default function ResetStep({
         toast({
           title: "Failed to reset password",
           description: result.message || "Please try again.",
-          variant: "destructive" as any,
+          variant: "destructive",
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Failed to reset password",
-        description: error?.message || "Please try again.",
-        variant: "destructive" as any,
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);

@@ -1,219 +1,107 @@
-import NextAuth from "next-auth";
+import NextAuth, { Session } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { LoginSchema, UserRoleSchema } from "@/types";
-import { extractRoleFromJWT } from "@/lib/jwt";
+import { LoginSchema } from "@/types";
+import { loginService } from "@/services/authService";
+import Google from "@auth/core/providers/google"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
   },
   providers: [
+     Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET ,authorization:{
+      params:{
+        prompt:"select_account"
+      }
+     }}),
     Credentials({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+      async authorize(credentials, _req) {
+         console.log("login request",credentials)
+        const parsed = LoginSchema.safeParse({
+          username: credentials?.username,
+          password: credentials?.password,
+        });
+
+        if (!parsed.success) {
           return null;
         }
 
-        const { email, password } = credentials;
+        const { username, password } = parsed.data;
 
-        // Try external API for authentication
         try {
-          const res = await fetch(`${process.env.BASE_API_URL}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-            signal: AbortSignal.timeout(10000), // 10 second timeout
-          });
-
-          const text = await res.text();
-          const json = text ? JSON.parse(text) : undefined;
-
-          // Expecting ApiResponse<AuthResponse> shape
-          const payload = json?.payload ?? json?.data ?? json;
-          const accessToken =
-            payload?.accessToken || payload?.token || payload?.access_token;
-          const refreshToken = payload?.refreshToken || payload?.refresh_token;
-          const expiresInSec = payload?.expiresIn || payload?.expires_in;
-          const user = payload?.user || payload?.profile || {};
-
-          if (!res.ok || !accessToken) {
-            console.error("External API login failed:", {
-              status: res.status,
-              statusText: res.statusText,
-              response: json,
-            });
-            return null;
+          const response = await loginService({ username, password });
+          
+          // Check for successful login
+          if (response.status.code !== "AUTH_LOGIN_SUCCESS" || !response.data) {
+            throw new Error(response.status.message || "Login failed");
           }
 
-          // Prefer extracting role directly from JWT; fallback to profile
-          let role: string | undefined = extractRoleFromJWT(accessToken);
-          if (!role) {
-            console.log(
-              "Fetching user profile to get roles (JWT had no role)..."
-            );
-            try {
-              const profileRes = await fetch(
-                `${process.env.BASE_API_URL}/users/profile`,
-                {
-                  method: "GET",
-                  headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    "Content-Type": "application/json",
-                  },
-                }
-              );
+          const { accessToken, expiresIn, user } = response.data;
 
-              if (profileRes.ok) {
-                const profileData = await profileRes.json();
-                const userRoles = profileData.payload?.roles || [];
-                console.log("User roles from profile:", userRoles);
-
-                if (userRoles.includes("admin")) role = "admin";
-                else if (userRoles.includes("teacher")) role = "teacher";
-                else if (userRoles.includes("student")) role = "student";
-
-                console.log("Extracted role from profile:", role);
-              } else {
-                console.error(
-                  "Failed to fetch user profile:",
-                  profileRes.status
-                );
-              }
-            } catch (error) {
-              console.error("Error fetching user profile:", error);
-            }
+          if (!accessToken) {
+            throw new Error("No access token received");
           }
-
-          if (!role || !UserRoleSchema.safeParse(role).success) {
-            console.error("CRITICAL: No valid role found in user profile!");
-            console.log("Available roles from profile:", role);
-            return null;
-          }
-
-          console.log("Final role assigned:", role);
 
           return {
-            id: String(user?.id || user?.userId || email),
-            email: user?.email || email,
-            name: user?.name || user?.fullName || user?.username || undefined,
-            role,
+            id: user.userId,
+            username: user.username,
+            roles: user.roles,
             accessToken,
-            refreshToken,
-            accessTokenExpires:
-              typeof expiresInSec === "number"
-                ? Date.now() + expiresInSec * 1000
-                : Date.now() + 10 * 60 * 1000, // default 10 minutes
-          } as any;
+            accessTokenExpires: Date.now() + expiresIn * 1000,
+          };
         } catch (error) {
-          console.error("External API login error:", {
-            message: error instanceof Error ? error.message : "Unknown error",
-            name: error instanceof Error ? error.name : "Unknown",
-            stack: error instanceof Error ? error.stack : undefined,
-          });
-          return null;
+          const message = error instanceof Error ? error.message : "Unknown error";
+          console.error("Login error:", message);
+          throw new Error(message);
         }
       },
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
-      // On initial sign-in attach tokens
+    //when we try to get token back from session
+    //it will first call jwt to see if there's user session or it's still valid
+    //then it will call to session to return the actual value
+    async jwt({ token, user,account  }) {
+      // On initial sign-in, persist user data to token
       if (user) {
-        token.role = (user as any).role;
-        token.accessToken = (user as any).accessToken;
-        token.refreshToken = (user as any).refreshToken;
-        token.accessTokenExpires = (user as any).accessTokenExpires;
+        token.id = user.id;
+        token.username = user.username;
+        token.roles = user.roles;
+        token.accessToken = user.accessToken;
+        token.accessTokenExpires = user.accessTokenExpires;
       }
+        if (account?.provider === "google") {
+      const res = await fetch(`${process.env.API_BASE_URL}/auths/login/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken: account.id_token,  deviceId: "string"}),
+      }).then(r => r.json());
 
-      const expires = (token as any).accessTokenExpires as number | undefined;
-      if (!expires || Date.now() < expires) return token;
+      token.id = res.data.user.userId;
+      token.username = res.data.user.username;
+      token.roles = res.data.user.roles;
+      token.accessToken = res.data.accessToken;
+      token.accessTokenExpires = Date.now() + res.data.expiresIn * 1000;
+    }
 
-      // Refresh access token if expired
-      try {
-        const refreshToken = (token as any).refreshToken as string | undefined;
-        if (!refreshToken) return token;
-
-        const res = await fetch(
-          `${
-            process.env.BASE_API_URL
-          }/auth/refresh?refreshToken=${encodeURIComponent(refreshToken)}`,
-          { method: "POST" }
-        );
-
-        const text = await res.text();
-        const json = text ? JSON.parse(text) : undefined;
-        if (!res.ok) return token;
-
-        const payload = json?.payload ?? json?.data ?? json;
-        const accessToken =
-          payload?.accessToken || payload?.token || payload?.access_token;
-        const expiresInSec = payload?.expiresIn || payload?.expires_in;
-
-        // Extract role from refreshed token using profile endpoint
-        if (accessToken) {
-          try {
-            const profileRes = await fetch(
-              `${process.env.BASE_API_URL}/users/profile`,
-              {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  "Content-Type": "application/json",
-                },
-              }
-            );
-
-            if (profileRes.ok) {
-              const profileData = await profileRes.json();
-              const userRoles = profileData.payload?.roles || [];
-
-              // Look for our specific roles in order of priority
-              let refreshedRole: string | undefined;
-              if (userRoles.includes("admin")) {
-                refreshedRole = "admin";
-              } else if (userRoles.includes("teacher")) {
-                refreshedRole = "teacher";
-              } else if (userRoles.includes("student")) {
-                refreshedRole = "student";
-              }
-
-              if (
-                refreshedRole &&
-                UserRoleSchema.safeParse(refreshedRole).success
-              ) {
-                (token as any).role = refreshedRole;
-              }
-            }
-          } catch (error) {
-            console.error("Error fetching user profile during refresh:", error);
-          }
-        }
-
-        (token as any).accessToken = accessToken;
-        (token as any).accessTokenExpires =
-          typeof expiresInSec === "number"
-            ? Date.now() + expiresInSec * 1000
-            : Date.now() + 10 * 60 * 1000;
-      } catch (error) {
-        console.error("Token refresh failed:", error);
-        // ignore refresh failure; client will be forced to re-login
-      }
       return token;
     },
     async session({ session, token }) {
-      console.log("Session callback - Token role:", (token as any).role);
-      session.user = {
-        ...session.user,
-        role: (token as any).role,
-      } as any;
-      (session as any).accessToken = (token as any).accessToken;
-      (session as any).refreshToken = (token as any).refreshToken;
-      return session;
+      // Map JWT token data to session
+      return {
+        ...session,
+        user: {
+          id: token.id as string,
+          username: token.username as string,
+          roles: token.roles as string[],
+        },
+        accessToken: token.accessToken as string,
+      } as Session;
     },
     async redirect({ url, baseUrl }) {
       console.log(
@@ -234,7 +122,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // The middleware will handle role-based redirects from there
       if (url === baseUrl) {
         console.log("NextAuth redirect - Base URL, redirecting to dashboard");
-        return `${baseUrl}/dashboard`;
+        return `${baseUrl}/product`;
       }
 
       // If the URL is on the same origin, allow it
@@ -243,9 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return url;
       }
 
-      // Otherwise, redirect to dashboard (middleware will handle role-based redirect)
-      console.log("NextAuth redirect - Default to dashboard");
-      return `${baseUrl}/dashboard`;
+      return `${baseUrl}/product`;
     },
   },
   pages: {
